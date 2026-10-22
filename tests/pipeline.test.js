@@ -17,7 +17,7 @@ mock.module('@vercel/blob', {
     issueSignedToken: async (o) => ({ delegationToken: 'd', clientSigningToken: 'c', ...o }),
     presignUrl: async (tok, o) => {
       assert.equal(o.operation, 'get'); assert.equal(o.access, 'private');
-      assert.ok(o.validUntil - Date.now() > 23 * 3600e3, 'link lasts ~24h');
+      assert.ok(o.validUntil - Date.now() > 11 * 3600e3, 'link lasts at least ~12h');
       return { presignedUrl: `https://store.private.blob.vercel-storage.com/${o.pathname}?sig=1` };
     },
     get: async (p, o) => {
@@ -57,7 +57,7 @@ const { getJob, readJSON, listJobs } = await import('../lib/store.js');
 const request = new Request('https://transcribe.example.com/api/jobs', { method: 'POST' });
 const company = { slug: 'acme', name: 'Acme Hotels', keyterms: ['Acme PMS', 'duetto'] };
 
-test('happy path: upload -> submit -> complete -> video and remote copy deleted', async () => {
+test('happy path: upload -> submit -> complete -> video kept, remote copy deleted', async () => {
   const pathname = 'uploads/acme/interview-abc123.mp4';
   blobs.set(pathname, 'video-bytes');
   const job = await createJob({ request, company, pathname, filename: 'Interview.mp4', source: 'client', extraTerms: ['Duetto'] });
@@ -85,7 +85,7 @@ test('happy path: upload -> submit -> complete -> video and remote copy deleted'
   assert.equal(done.costEstimate, 0.42); // 1.5 h x (0.21 + 0.02 + 0.05)
   const saved = await readJSON(`transcripts/${job.id}.json`);
   assert.deepEqual(saved.words, [[0, 300, 'Hi', 0], [300, 900, 'there.', 0]]);
-  assert.ok(!blobs.has(pathname) && deleted.includes(pathname), 'video deleted');
+  assert.ok(blobs.has(pathname) && !deleted.includes(pathname), 'video kept for the editor link');
   assert.deepEqual(aai.deleted, ['tr_1'], 'remote transcript deleted after our copy was saved');
 
   await syncJob(done); // a late webhook after completion does nothing
@@ -121,4 +121,21 @@ test('a rejected submit is recorded as an error, not lost', async () => {
 
 test('missing upload is refused', async () => {
   await assert.rejects(createJob({ request, company, pathname: 'uploads/acme/nope.mp4', filename: 'nope.mp4', source: 'client' }), /Upload not found/);
+});
+
+test('editor link redirects to a fresh signed video URL and rejects unknown tokens', async () => {
+  const { GET } = await import('../app/v/[token]/route.js');
+  const pathname = 'uploads/acme/editor-1.mp4';
+  blobs.set(pathname, 'v');
+  aai.status = 'processing';
+  const job = await createJob({ request, company, pathname, filename: 'editor.mp4', source: 'admin' });
+  job.shareToken = 'TOKEN_abcdefghijklmnopqrstu';
+  const { saveJob, writeJSON } = await import('../lib/store.js');
+  await saveJob(job);
+  await writeJSON(`shares/${job.shareToken}.json`, { id: job.id });
+  const ok = await GET(new Request('https://x/v/t'), { params: Promise.resolve({ token: job.shareToken }) });
+  assert.equal(ok.status, 302);
+  assert.match(ok.headers.get('location'), /editor-1\.mp4\?sig=1$/);
+  const bad = await GET(new Request('https://x/v/t'), { params: Promise.resolve({ token: 'nope_nope_nope_nope_nope_1' }) });
+  assert.equal(bad.status, 404);
 });
