@@ -1,3 +1,4 @@
+import { head } from '@vercel/blob';
 import { guardAdmin } from '@/lib/auth.js';
 import { deleteTranscript } from '@/lib/assemblyai.js';
 import { syncJob } from '@/lib/jobs.js';
@@ -16,8 +17,11 @@ export async function GET(request, { params }) {
   let job = await load(params);
   if (!job) return Response.json({ error: 'Not found' }, { status: 404 });
   job = await syncJob(job).catch(() => job);
-  const transcript = job.status === 'done' ? await readJSON(transcriptPath(job.id)) : null;
-  return Response.json({ job, transcript });
+  const [transcript, video] = await Promise.all([
+    job.status === 'done' ? readJSON(transcriptPath(job.id)) : null,
+    head(job.pathname).catch(() => null),
+  ]);
+  return Response.json({ job, transcript, videoStored: !!video });
 }
 
 // Save speaker names (e.g. "A" -> "Jordan Hollander") and/or a new display title.
@@ -45,6 +49,7 @@ export async function DELETE(request, { params }) {
   const job = await load(params);
   if (!job) return Response.json({ error: 'Not found' }, { status: 404 });
   await Promise.all([remove(job.pathname), remove(transcriptPath(job.id)),
+    job.shareToken ? remove(`shares/${job.shareToken}.json`) : null,
     job.transcriptId ? deleteTranscript(job.transcriptId) : null]);
   await remove(jobPath(job.id));
   return Response.json({ ok: true });
