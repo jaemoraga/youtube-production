@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { blocks, clock, fileStem, toPlain, toSrt, toTxt } from '@/lib/format.js';
 import { api, Brand, bytes, download, duration, useToast, when } from './ui.js';
 
@@ -24,6 +24,18 @@ export default function TranscriptView({ id }) {
     return () => clearTimeout(timer);
   }, [job, load]);
 
+  const name = job ? job.title || job.filename : '';
+  const stem = fileStem(name);
+
+  const saveTitle = async (next) => {
+    const clean = next.replace(/\s+/g, ' ').trim();
+    if (clean === (job.title || job.filename)) return;
+    try {
+      const d = await api(`/api/jobs/${id}`, { method: 'PATCH', body: { title: clean === job.filename ? '' : clean } });
+      setJob(d.job); say('Renamed');
+    } catch (e) { say(e.message); }
+  };
+
   const saveNames = async (next) => {
     try { await api(`/api/jobs/${id}`, { method: 'PATCH', body: { speakerNames: next } }); } catch (e) { say(e.message); }
   };
@@ -32,17 +44,20 @@ export default function TranscriptView({ id }) {
     const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx');
     const grey = '6B6F76';
     const children = [
-      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(job.filename)] }),
+      new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(name)] }),
       new Paragraph({ children: [new TextRun({ text: `${job.companyName} · ${clock(t.duration * 1000)}`, color: grey, size: 18 })] }),
     ];
     for (const b of blocks(t, names)) {
       children.push(new Paragraph({ spacing: { before: 240 }, children: [
         new TextRun({ text: b.speaker, bold: true }), new TextRun({ text: `   ${clock(b.start)}`, color: grey, size: 18 }),
       ] }));
-      for (const p of b.paragraphs) children.push(new Paragraph({ spacing: { after: 120 }, children: [new TextRun(p)] }));
+      b.paragraphs.forEach((p, i) => children.push(new Paragraph({ spacing: { after: 120 }, children: [
+        ...(i > 0 ? [new TextRun({ text: `[${p.start == null ? '--:--:--' : clock(p.start)}]  `, color: grey, size: 18 })] : []),
+        new TextRun(p.text),
+      ] })));
     }
     const doc = new Document({ styles: { default: { document: { run: { font: 'Calibri', size: 22 } } } }, sections: [{ children }] });
-    download(`${fileStem(job.filename)}.docx`, await Packer.toBlob(doc));
+    download(`${stem}.docx`, await Packer.toBlob(doc));
   }
 
   if (error) return <div className="wrap"><header className="top"><Brand /></header><div className="alert">{error}</div></div>;
@@ -54,8 +69,8 @@ export default function TranscriptView({ id }) {
         <Brand />
         <a className="linkbtn" href="/">All transcripts</a>
       </header>
-      <h1 style={{ wordBreak: 'break-word' }}>{job.filename}</h1>
-      <p className="sub">{job.companyName} · uploaded {when(job.createdAt)}{job.source === 'client' ? ' by the client' : ''} · {bytes(job.size)}</p>
+      <Title value={name} onSave={saveTitle} />
+      <p className="sub">{job.title ? <>Original file: {job.filename} · </> : null}{job.companyName} · uploaded {when(job.createdAt)}{job.source === 'client' ? ' by the client' : ''} · {bytes(job.size)}</p>
 
       {job.status === 'processing' && (
         <div className="card pad">
@@ -88,9 +103,9 @@ export default function TranscriptView({ id }) {
           </dl>
           <div className="toolbar">
             <button className="btn" onClick={() => navigator.clipboard.writeText(toPlain(t, names)).then(() => say('Copied'))}>Copy</button>
-            <button className="btn" onClick={() => download(`${fileStem(job.filename)}.txt`, new Blob([toTxt(t, job, names)], { type: 'text/plain' }))}>TXT</button>
+            <button className="btn" onClick={() => download(`${stem}.txt`, new Blob([toTxt(t, job, names)], { type: 'text/plain' }))}>TXT</button>
             <button className="btn" onClick={() => docx().catch((e) => say(e.message))}>DOCX</button>
-            <button className="btn" onClick={() => download(`${fileStem(job.filename)}.srt`, new Blob([toSrt(t, names)], { type: 'application/x-subrip' }))}>SRT</button>
+            <button className="btn" onClick={() => download(`${stem}.srt`, new Blob([toSrt(t, names)], { type: 'application/x-subrip' }))}>SRT</button>
             <span className="spacer" />
             <DeleteButton id={id} />
           </div>
@@ -106,7 +121,9 @@ export default function TranscriptView({ id }) {
             {blocks(t, names).map((b, i) => (
               <div className="turn" key={i}>
                 <div className="who">{b.speaker}<time>{clock(b.start)}</time></div>
-                {b.paragraphs.map((p, k) => <p key={k}>{p}</p>)}
+                {b.paragraphs.map((p, k) => (
+                  <p key={k}>{k > 0 && p.start != null && <time className="pts">{clock(p.start)}</time>}{p.text}</p>
+                ))}
               </div>
             ))}
           </div>
@@ -131,3 +148,29 @@ export default function TranscriptView({ id }) {
   }
 }
 
+
+// Click the title to rename it. Enter or clicking away saves; Escape cancels.
+function Title({ value, onSave }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const finished = useRef(false); // Enter/Escape already handled; ignore the blur that follows
+  if (!editing) {
+    return (
+      <h1 className="title-edit" title="Click to rename" onClick={() => { finished.current = false; setDraft(value); setEditing(true); }}>
+        {value}<span className="pencil" aria-hidden="true">✎</span>
+      </h1>
+    );
+  }
+  const done = (save) => {
+    if (finished.current) return;
+    finished.current = true;
+    setEditing(false);
+    if (save) onSave(draft);
+  };
+  return (
+    <input type="text" className="title-input" autoFocus value={draft} maxLength={200} aria-label="Transcript name"
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => done(true)}
+      onKeyDown={(e) => { if (e.key === 'Enter') done(true); if (e.key === 'Escape') done(false); }} />
+  );
+}
