@@ -80,7 +80,7 @@ company; personal addresses (gmail etc.) get their own.
 | `EMAIL_FROM` | e.g. `Hotel Tech Report <video@hoteltechreport.com>` (must be on the verified domain) |
 | `NOTIFY_EMAILS` | who hears about client submissions, comma-separated |
 | `EDITOR_PASSWORD` | 8+ characters; give it to your editor |
-| `DOSSIER_TEMPLATE_URL` | the Google Doc clients copy |
+| `DOSSIER_TEMPLATE_URL` | optional: the Google Doc clients copy (defaults to the current Video Vendor Application doc) |
 
 3. **Redeploy.** Everyone is signed out once (new session cookie). From then on admins use email
    codes and `ADMIN_PASSWORD` stops working.

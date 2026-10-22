@@ -153,8 +153,8 @@ function Dossier({ p, admin, act, templateUrl }) {
   return (
     <>
       <ol className="howto">
-        <li>{templateUrl ? <>Open the <a href={templateUrl} target="_blank" rel="noreferrer">dossier template ↗</a> and choose <b>File → Make a copy</b>.</> : <>Make a copy of the dossier template your Hotel Tech Report contact sent you (<b>File → Make a copy</b>).</>}</li>
-        <li>Fill it in.</li>
+        <li>{templateUrl ? <>Open the <a href={templateUrl} target="_blank" rel="noreferrer">dossier template ↗</a> and click <b>Make a copy</b>.</> : <>Make a copy of the dossier template your Hotel Tech Report contact sent you (<b>File → Make a copy</b>).</>}</li>
+        <li>Fill in your copy. Keep answers short and clear. You can skip the demo video question: upload the video in step 3 below.</li>
         <li>Click <b>Share</b>, set <b>General access</b> to <b>Anyone with the link</b>, and copy the link.</li>
         <li>Paste the link here.</li>
       </ol>
@@ -273,7 +273,7 @@ function Video({ p, admin, reload, say, job }) {
       )}
       {(replacing && !locked) && (
         <>
-          <p className="muted small" style={{ marginTop: 0 }}>Upload the raw recording (not an edited marketing video). Large files are fine; keep this page open until it finishes.</p>
+          <p className="muted small" style={{ marginTop: 0 }}>Upload an unedited screen-share demo of your software: ideally 20+ minutes covering every key part of the platform, with voice-over and no talking head over the product. Not a marketing video. Large files are fine; keep this page open until it finishes.</p>
           <label className="drop small-drop">
             <strong>{pct !== null ? `Uploading… ${Math.floor(pct)}%` : 'Drop your video or click to choose'}</strong>
             <input type="file" hidden accept="video/*" disabled={pct !== null} onChange={(e) => upload(e.target.files[0])} />
