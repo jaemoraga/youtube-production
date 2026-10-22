@@ -20,15 +20,21 @@ export async function GET(request, { params }) {
   return Response.json({ job, transcript });
 }
 
-// Save speaker names (e.g. "A" -> "Jordan Hollander").
+// Save speaker names (e.g. "A" -> "Jordan Hollander") and/or a new display title.
 export async function PATCH(request, { params }) {
   const denied = await guardAdmin(request);
   if (denied) return denied;
   const job = await load(params);
   if (!job) return Response.json({ error: 'Not found' }, { status: 404 });
-  const { speakerNames } = await request.json().catch(() => ({}));
-  job.speakerNames = Object.fromEntries(Object.entries(speakerNames || {})
-    .filter(([k]) => /^[A-Z?]{1,3}$/.test(k)).map(([k, v]) => [k, String(v).slice(0, 80)]));
+  const { speakerNames, title } = await request.json().catch(() => ({}));
+  if (speakerNames !== undefined) {
+    job.speakerNames = Object.fromEntries(Object.entries(speakerNames || {})
+      .filter(([k]) => /^[A-Z?]{1,3}$/.test(k)).map(([k, v]) => [k, String(v).slice(0, 80)]));
+  }
+  if (title !== undefined) {
+    const clean = String(title).replace(/\s+/g, ' ').trim().slice(0, 200);
+    job.title = clean || null; // empty = back to the original file name
+  }
   await saveJob(job);
   return Response.json({ job });
 }
