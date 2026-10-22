@@ -1,5 +1,5 @@
 'use client';
-import { upload } from '@vercel/blob/client';
+import { uploadPresigned } from '@vercel/blob/client';
 import { useEffect, useRef, useState } from 'react';
 import { mediaType, safeName } from '@/lib/media.js';
 import { api, bytes } from './ui.js';
@@ -39,7 +39,7 @@ export default function Uploader({ mode, token, companySlug, companyName, compan
     setPct(0);
     try {
       const pathname = `uploads/${admin ? slug : companySlug}/${safeName(file.name)}`;
-      const blob = await upload(pathname, file, {
+      const blob = await uploadPresigned(pathname, file, {
         access: 'private',
         handleUploadUrl: '/api/upload',
         clientPayload: JSON.stringify(admin ? {} : { token }),
