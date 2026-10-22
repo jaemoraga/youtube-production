@@ -7,13 +7,14 @@ export default function TranscriptView({ id }) {
   const [job, setJob] = useState(null);
   const [t, setT] = useState(null);
   const [names, setNames] = useState({});
+  const [videoStored, setVideoStored] = useState(false);
   const [error, setError] = useState('');
   const [toast, say] = useToast();
 
   const load = useCallback(async () => {
     try {
       const d = await api(`/api/jobs/${id}`);
-      setJob(d.job); setT(d.transcript); setNames(d.job.speakerNames || {});
+      setJob(d.job); setT(d.transcript); setNames(d.job.speakerNames || {}); setVideoStored(d.videoStored);
     } catch (e) { setError(e.message); }
   }, [id]);
 
@@ -33,6 +34,14 @@ export default function TranscriptView({ id }) {
     try {
       const d = await api(`/api/jobs/${id}`, { method: 'PATCH', body: { title: clean === job.filename ? '' : clean } });
       setJob(d.job); say('Renamed');
+    } catch (e) { say(e.message); }
+  };
+
+  const copyVideoLink = async () => {
+    try {
+      const { url } = await api(`/api/jobs/${id}/share`, { method: 'POST' });
+      await navigator.clipboard.writeText(url);
+      say('Video link copied');
     } catch (e) { say(e.message); }
   };
 
@@ -71,6 +80,18 @@ export default function TranscriptView({ id }) {
       </header>
       <Title value={name} onSave={saveTitle} />
       <p className="sub">{job.title ? <>Original file: {job.filename} · </> : null}{job.companyName} · uploaded {when(job.createdAt)}{job.source === 'client' ? ' by the client' : ''} · {bytes(job.size)}</p>
+
+      <div className="card pad video-row">
+        <div>
+          <div style={{ fontWeight: 500 }}>Video</div>
+          <div className="muted small">
+            {videoStored
+              ? 'Stored with this transcript. The editor link needs no login and never expires; it stops working if you delete this transcript.'
+              : 'Not stored. The app used to delete videos after transcribing; upload this one again to keep it here.'}
+          </div>
+        </div>
+        {videoStored && <button className="btn primary" onClick={copyVideoLink}>Copy editor link</button>}
+      </div>
 
       {job.status === 'processing' && (
         <div className="card pad">
