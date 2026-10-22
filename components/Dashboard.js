@@ -56,7 +56,7 @@ export default function Dashboard() {
             <tbody>
               {shown.map((j) => (
                 <tr key={j.id} className="click" onClick={() => { location.href = `/jobs/${j.id}`; }}>
-                  <td className="name" title={j.filename}>{j.filename}</td>
+                  <td className="name" title={j.filename}>{j.title || j.filename}</td>
                   <td className="hide-sm">{j.companyName}{j.source === 'client' ? <span className="muted small"> · client</span> : null}</td>
                   <td className="muted">{when(j.createdAt)}</td>
                   <td className="hide-sm muted">{j.duration ? duration(j.duration) : '—'}</td>
