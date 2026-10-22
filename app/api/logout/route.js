@@ -1,4 +1,4 @@
-import { endSession } from '@/lib/auth.js';
+import { endSession } from '@/lib/session.js';
 
 export async function POST() {
   await endSession();

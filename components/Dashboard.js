@@ -1,9 +1,12 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
+import { ITEMS, projectStatus } from '@/lib/project-shared.js';
+import { StatusPill } from './ProjectView.js';
 import { api, Brand, duration, useToast, when } from './ui.js';
 
 export default function Dashboard() {
   const [jobs, setJobs] = useState(null);
+  const [projects, setProjects] = useState(null);
   const [companies, setCompanies] = useState([]);
   const [filter, setFilter] = useState('');
   const [error, setError] = useState('');
@@ -11,8 +14,8 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     try {
-      const [j, c] = await Promise.all([api('/api/jobs'), api('/api/companies')]);
-      setJobs(j.jobs); setCompanies(c.companies); setError('');
+      const [j, c, pr] = await Promise.all([api('/api/jobs'), api('/api/companies'), api('/api/projects')]);
+      setJobs(j.jobs); setCompanies(c.companies); setProjects(pr.projects); setError('');
     } catch (e) { setError(e.message); }
   }, []);
 
@@ -31,13 +34,16 @@ export default function Dashboard() {
       <header className="top">
         <Brand />
         <div className="row">
+          <a className="linkbtn" href="/editor">Editor view</a>
           <a className="btn primary" href="/upload">Upload</a>
           <button className="linkbtn" onClick={async () => { await api('/api/logout', { method: 'POST' }); location.href = '/login'; }}>Sign out</button>
         </div>
       </header>
 
-      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
-        <h1>Transcripts</h1>
+      <Projects projects={projects} />
+
+      <div className="row" style={{ justifyContent: 'space-between', margin: '40px 0 12px' }}>
+        <h1 style={{ fontSize: 20 }}>Transcripts</h1>
         {companyOptions.length > 1 && (
           <select style={{ width: 'auto' }} value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="">All companies</option>
@@ -89,9 +95,10 @@ function Companies({ companies, reload, say }) {
 
   return (
     <>
-      <h2>Client upload links</h2>
+      <h2>Companies</h2>
       <p className="muted small" style={{ marginTop: -6 }}>
-        Each company gets its own private link. Clients only see their own company name and can only upload; they never see transcripts or other clients.
+        Clients sign up themselves at <b>{origin}/portal</b>; their company appears here. <b>New project</b> starts another checklist for a company.
+        The upload link is the older, video-only option.
       </p>
       <div className="card">
         {companies.map((c) => <CompanyRow key={c.slug} c={c} origin={origin} reload={reload} say={say} />)}
@@ -121,7 +128,10 @@ function CompanyRow({ c, origin, reload, say }) {
           <div className="link">{link}</div>
         </div>
         <div className="row">
-          <button className="btn" onClick={() => navigator.clipboard.writeText(link).then(() => say('Link copied'))}>Copy link</button>
+          <button className="btn" onClick={async () => {
+            try { const d = await api('/api/projects', { method: 'POST', body: { company: c.slug } }); location.href = `/projects/${d.project.id}`; } catch (e) { say(e.message); }
+          }}>New project</button>
+          <button className="btn" onClick={() => navigator.clipboard.writeText(link).then(() => say('Link copied'))}>Copy upload link</button>
           <button className="linkbtn" onClick={() => setOpen(!open)}>{open ? 'Close' : 'Edit'}</button>
         </div>
       </div>
@@ -143,5 +153,42 @@ function CompanyRow({ c, origin, reload, say }) {
         </div>
       )}
     </div>
+  );
+}
+
+const SHORT = { todo: '—', submitted: 'In', changes: 'Fix', approved: '✓' };
+
+function Projects({ projects }) {
+  const [show, setShow] = useState('open');
+  const list = (projects || []).filter((p) => show === 'all' || projectStatus(p) !== 'approved')
+    .sort((a, b) => (projectStatus(a) === 'review' ? 0 : 1) - (projectStatus(b) === 'review' ? 0 : 1));
+  return (
+    <>
+      <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+        <h1>Client projects</h1>
+        <select style={{ width: 'auto' }} value={show} onChange={(e) => setShow(e.target.value)}>
+          <option value="open">Open</option><option value="all">All, including approved</option>
+        </select>
+      </div>
+      <div className="card">
+        {projects === null ? <div className="empty">Loading…</div> : list.length === 0 ? (
+          <div className="empty">No open projects. Clients sign up at /portal.</div>
+        ) : (
+          <table>
+            <thead><tr><th>Company</th><th className="hide-sm">Project</th>{ITEMS.map((i) => <th key={i} className="hide-sm c">{{ dossier: 'Dossier', assets: 'Assets', video: 'Video' }[i]}</th>)}<th>Status</th></tr></thead>
+            <tbody>
+              {list.map((p) => (
+                <tr key={p.id} className="click" onClick={() => { location.href = `/projects/${p.id}`; }}>
+                  <td className="name">{p.companyName}</td>
+                  <td className="hide-sm muted">{p.name}</td>
+                  {ITEMS.map((i) => <td key={i} className={`hide-sm c st-text-${p.items[i].status}`}>{SHORT[p.items[i].status]}</td>)}
+                  <td><StatusPill status={projectStatus(p)} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>
   );
 }

@@ -52,6 +52,41 @@ under Settings → Domains). Sign in with your `ADMIN_PASSWORD`. Bookmark it.
 
 ---
 
+## Client portal, review and editor view
+
+Three roles share one site:
+
+| Who | Where | Signs in with |
+|---|---|---|
+| Client (sponsor) | `/portal` | work email → 6-digit code. First visit asks name and company. |
+| HTR admin | `/` | `@hoteltechreport.com` email → code. Stays signed in 7 days. |
+| Editor | `/editor` | the one shared `EDITOR_PASSWORD` |
+
+Each client project has three steps: sponsor dossier (a Google Doc link), brand materials
+(files) and the raw video (transcribed automatically). Admins approve each step or request an
+update with a comment; the client is emailed and the step goes back to them. When all three are
+approved the client gets an "all set" email. People from the same email domain join the same
+company; personal addresses (gmail etc.) get their own.
+
+### Setting it up
+1. **Email (Resend).** Create an account at https://resend.com, add the domain you send from
+   (e.g. `hoteltechreport.com` or `mail.hoteltechreport.com`), add the DNS records it shows, and
+   wait for "Verified". Create an API key (Sending access).
+2. **Vercel → Settings → Environment Variables**, add:
+
+| Name | Value |
+|---|---|
+| `RESEND_API_KEY` | the key from step 1 |
+| `EMAIL_FROM` | e.g. `Hotel Tech Report <video@hoteltechreport.com>` (must be on the verified domain) |
+| `NOTIFY_EMAILS` | who hears about client submissions, comma-separated |
+| `EDITOR_PASSWORD` | 8+ characters; give it to your editor |
+| `DOSSIER_TEMPLATE_URL` | the Google Doc clients copy |
+
+3. **Redeploy.** Everyone is signed out once (new session cookie). From then on admins use email
+   codes and `ADMIN_PASSWORD` stops working.
+
+---
+
 ## Test before a long video
 
 1. Click **Upload**, choose a 1–2 minute phone recording where two people talk and say a few
@@ -92,12 +127,14 @@ under Settings → Domains). Sign in with your `ADMIN_PASSWORD`. Bookmark it.
 - Your AssemblyAI key and all storage keys live only in Vercel's environment variables.
 - Everything is stored in a **private** Blob store; nothing is reachable by URL without
   signing in. AssemblyAI only gets a 24-hour link to the one video it is transcribing.
-- The dashboard, transcripts and all admin actions require your password cookie (30 days).
+- Admins sign in with an emailed code, only for @hoteltechreport.com addresses (7-day session).
+  Clients sign in with an emailed code and only ever see their own company. Editors share one
+  password and can view, never change. The admin password only works until email is set up.
 - Upload links are 24-character random tokens, one per company, and only allow uploads to that
   company's folder. Uploads are limited to audio/video files up to 5 GB.
 - Webhook calls from AssemblyAI must carry a secret header derived from `APP_SECRET`.
-- After a transcript is saved: the video is deleted from storage and the transcript is deleted
-  from AssemblyAI. Transcripts stay in your storage until you delete them.
+- After a transcript is saved, the copy at AssemblyAI is deleted; the video stays in your storage
+  for the editor. Transcripts stay in your storage until you delete them.
 
 ## Changing it later
 

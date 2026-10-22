@@ -120,3 +120,54 @@ input.title-input { font-size: 26px; font-weight: 600; letter-spacing: -.02em; p
 .viewer .pts { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; margin-right: 8px; }
 .video-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
 .video-row > div { min-width: 0; flex: 1; }
+
+/* ---------- portal / review / editor ---------- */
+.code-input { font-size: 24px !important; letter-spacing: .3em; text-align: center; font-variant-numeric: tabular-nums; }
+.list-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); text-decoration: none; }
+.list-row:last-child { border-bottom: 0; }
+.list-row:hover { background: var(--bg); }
+.pill.st-todo { background: var(--border); color: var(--muted); }
+.pill.st-submitted, .pill.st-review { background: var(--accent-soft); color: var(--accent); }
+.pill.st-changes, .pill.st-waiting { background: var(--warn-soft); color: var(--warn); }
+.pill.st-approved { background: var(--ok-soft); color: var(--ok); }
+td.c { text-align: center; } th.c { text-align: center; }
+.st-text-approved { color: var(--ok); font-weight: 600; }
+.st-text-submitted { color: var(--accent); font-weight: 500; }
+.st-text-changes { color: var(--warn); font-weight: 600; }
+.st-text-todo { color: var(--faint); }
+.steps { display: grid; gap: 14px; margin-top: 8px; }
+.step { padding: 0; overflow: hidden; }
+.step.st-border-changes { border-color: var(--warn); }
+.step-head { display: flex; align-items: center; gap: 12px; padding: 16px 18px 6px; }
+.step-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+.num { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 600; background: var(--border); color: var(--muted); flex: none; }
+.num.st-submitted, .num.st-approved { background: var(--ok-soft); color: var(--ok); }
+.num.st-changes { background: var(--warn-soft); color: var(--warn); }
+.step-body { padding: 8px 18px 16px 56px; }
+.callout { margin: 6px 18px 0 56px; padding: 10px 12px; border-radius: 9px; background: var(--warn-soft); font-size: 14px; }
+.review-bar { display: flex; gap: 8px; padding: 0 18px 14px 56px; }
+.btn.ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+.thread { border-top: 1px solid var(--border); padding: 10px 18px 12px 50px; background: var(--bg); }
+.msg { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; margin: 8px 0; }
+.msg.from-htr { border-left: 3px solid var(--accent); }
+.msg-text { white-space: pre-wrap; font-size: 14px; }
+.thread textarea { margin-top: 8px; }
+.howto { margin: 0 0 12px; padding-left: 18px; font-size: 14px; color: var(--muted); }
+.howto li { margin: 3px 0; }
+.howto b { color: var(--text); font-weight: 500; }
+.drop.small-drop { padding: 22px 16px; }
+.drop.small-drop strong { margin-top: 0; font-size: 14px; }
+.assets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.asset { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; text-decoration: none; background: var(--surface); }
+.asset .thumb { height: 96px; flex: none; overflow: hidden; display: grid; place-items: center; background: var(--bg); color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: none; }
+.asset .thumb img { display: block; width: 100%; height: 96px; object-fit: contain; }
+.asset-meta { padding: 6px 9px 2px; display: flex; flex-direction: column; min-width: 0; }
+.asset-name { font-size: 13px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.asset .linkbtn { align-self: flex-start; margin: 0 4px 4px; }
+.editor-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 640px) {
+  .step-body, .review-bar { padding-left: 18px; }
+  .callout { margin-left: 18px; }
+  .thread { padding-left: 18px; }
+  .editor-grid { grid-template-columns: 1fr; }
+}

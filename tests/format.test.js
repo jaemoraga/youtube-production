@@ -90,3 +90,27 @@ test('file types and storage names', () => {
   assert.equal(safeName('../../etc/passwd'), '....etcpasswd');
   assert.equal(safeName('Café Interview (final).mp4'), 'Cafe-Interview-final.mp4');
 });
+
+test('every paragraph gets the real start time of its first word', () => {
+  const sentences = Array.from({ length: 8 }, (_, i) => `Point number ${i} matters here.`);
+  const words = [];
+  let ms = 10000;
+  for (const w of sentences.join(' ').split(' ')) { words.push([ms, ms + 200, w, 0]); ms += 250; }
+  const tt = { speakers: ['A'], words, turns: [{ s: 'A', start: 10000, end: ms, text: sentences.join(' ') }] };
+  const [b] = blocks(tt);
+  assert.equal(b.paragraphs.length, 2); // 5 sentences, then 3
+  assert.equal(b.paragraphs[0].start, 10000);
+  assert.equal(b.paragraphs[1].start, 10000 + 5 * 5 * 250); // 25 words later
+  assert.equal(words.find((w) => w[0] === b.paragraphs[1].start)[2], 'Point');
+  const txt = toTxt(tt, { filename: 'raw.mp4', title: 'CCO interview', companyName: 'Acme' });
+  assert.match(txt, /^CCO interview\n/);
+  assert.match(txt, /\[00:00:10\] Speaker A: Point number 0/);
+  assert.match(txt, /\[00:00:16\] Point number 5/);
+});
+
+test('mismatched words give no timestamp rather than a wrong one', () => {
+  const text = 'One two three. Four five six. Seven eight nine. Ten eleven twelve. Thirteen fourteen. Fifteen sixteen.';
+  const words = text.split(' ').map((w, i) => [i * 100, i * 100 + 90, i === 14 ? 'DIFFERENT' : w, 0]);
+  const [b] = blocks({ speakers: ['A'], words, turns: [{ s: 'A', start: 0, end: 2000, text }] });
+  assert.equal(b.paragraphs[1].start, null);
+});
