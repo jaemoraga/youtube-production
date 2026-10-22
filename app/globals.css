@@ -112,3 +112,9 @@ td.name { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-spa
   .hide-sm { display: none; }
   .viewer { padding: 18px; }
 }
+
+.title-edit { word-break: break-word; cursor: text; border-radius: 6px; }
+.title-edit .pencil { font-size: 15px; color: var(--faint); margin-left: 10px; opacity: 0; transition: opacity .15s; }
+.title-edit:hover .pencil { opacity: 1; }
+input.title-input { font-size: 26px; font-weight: 600; letter-spacing: -.02em; padding: 2px 8px; margin: 0 0 6px -9px; }
+.viewer .pts { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; margin-right: 8px; }
