@@ -13,7 +13,7 @@ export function StatusPill({ status, forClient = false }) {
   return <span className={`pill st-${status}`}>{text}</span>;
 }
 
-export default function ProjectView({ initial, role, templateUrl, job }) {
+export default function ProjectView({ initial, role, templateUrl, job, htrEnabled = false }) {
   const [p, setP] = useState(initial);
   const [toast, say] = useToast();
   const admin = role === 'admin';
@@ -60,7 +60,7 @@ export default function ProjectView({ initial, role, templateUrl, job }) {
           <Video p={p} admin={admin} reload={reload} say={say} job={job} />
         </Item>
       </div>
-      {admin && <InternalDossier p={p} act={act} />}
+      {admin && <InternalDossier p={p} act={act} htrEnabled={htrEnabled} say={say} />}
       {toast}
     </>
   );
@@ -290,17 +290,22 @@ function Video({ p, admin, reload, say, job }) {
   );
 }
 
+// Rows that fit the text (about 80 characters per line), between 3 and 16.
+const fitRows = (v) => Math.max(3, Math.min(16, String(v || '').split('\n').reduce((n, line) => n + Math.max(1, Math.ceil(line.length / 80)), 0) + 1));
+
 // HTR-only. Free text copied from the vendor's HTR profile; every field optional.
-function InternalDossier({ p, act }) {
+function InternalDossier({ p, act, htrEnabled, say }) {
   const saved = p.internal?.fields || {};
   const [f, setF] = useState(saved);
   const [busy, setBusy] = useState(false);
+  const [src, setSrc] = useState(p.internal?.htr || null);
+  const [kept, setKept] = useState(null);   // { fields } pulled values we didn't apply because the box had text
   const complete = !!p.internal?.completedAt;
   const dirty = INTERNAL_FIELDS.some((x) => (f[x.key] || '').trim() !== (saved[x.key] || ''));
   const filled = INTERNAL_FIELDS.filter((x) => (f[x.key] || '').trim()).length;
   const save = async (extra, msg) => {
     setBusy(true);
-    const ok = await act({ type: 'internal.save', fields: f, ...extra }, msg);
+    const ok = await act({ type: 'internal.save', fields: f, htr: src, ...extra }, msg);
     setBusy(false);
     return ok;
   };
@@ -314,6 +319,24 @@ function InternalDossier({ p, act }) {
         </div>
         <span className={`pill ${complete ? 'st-approved' : 'st-todo'}`}>{complete ? 'Complete' : `${filled} of ${INTERNAL_FIELDS.length} filled`}</span>
       </div>
+      <HtrPull p={p} enabled={htrEnabled} src={src} say={say} onPulled={(data) => {
+        const next = { ...f };
+        const skipped = {};
+        for (const [k, v] of Object.entries(data.fields)) {
+          if ((f[k] || '').trim() && (f[k] || '').trim() !== v) skipped[k] = v; else next[k] = v;
+        }
+        setF(next);
+        setSrc(data.source);
+        setKept(Object.keys(skipped).length ? skipped : null);
+        say(`Filled ${Object.keys(data.fields).length - Object.keys(skipped).length} fields from the HTR profile. Review, then Save.`);
+      }} />
+      {kept && (
+        <div className="callout" style={{ margin: '10px 18px 0' }}>
+          {Object.keys(kept).length} field{Object.keys(kept).length > 1 ? 's' : ''} already had your text, so I left {Object.keys(kept).length > 1 ? 'them' : 'it'} alone
+          ({INTERNAL_FIELDS.filter((x) => kept[x.key]).map((x) => x.label).join(', ')}).{' '}
+          <button className="linkbtn" style={{ padding: 0 }} onClick={() => { setF({ ...f, ...kept }); setKept(null); }}>Replace with HTR data</button>
+        </div>
+      )}
       <div className="internal-body">
         {INTERNAL_FIELDS.map((x) => {
           const heading = x.group && x.group !== lastGroup ? x.group : null;
@@ -323,7 +346,7 @@ function InternalDossier({ p, act }) {
               {heading && <div className="internal-group">{heading}</div>}
               <label className="field" style={{ marginTop: heading ? 6 : 14 }}>
                 <span>{x.label}</span>
-                <textarea rows={x.group ? 3 : 4} value={f[x.key] || ''} onChange={(e) => setF({ ...f, [x.key]: e.target.value })} />
+                <textarea rows={fitRows(f[x.key])} className="autogrow" value={f[x.key] || ''} onChange={(e) => setF({ ...f, [x.key]: e.target.value })} />
               </label>
             </div>
           );
@@ -341,5 +364,60 @@ function InternalDossier({ p, act }) {
           : <button className="btn ok" disabled={busy} onClick={() => save({ complete: true }, 'Internal dossier complete')}>{dirty ? 'Save & mark complete' : 'Mark complete'}</button>}
       </div>
     </section>
+  );
+}
+
+// Find the vendor's product on Hotel Tech Report and pull its profile into the form.
+function HtrPull({ p, enabled, src, say, onPulled }) {
+  const [q, setQ] = useState(p.companyName || '');
+  const [results, setResults] = useState(null);
+  const [busy, setBusy] = useState(false);
+  if (!enabled) {
+    return (
+      <div className="htr-bar muted small">
+        Connect the Hotel Tech Report data feed to fill this from the vendor&apos;s profile automatically (set HTR_MCP_URL and HTR_MCP_KEY in Vercel).
+      </div>
+    );
+  }
+  const search = async (e) => {
+    e?.preventDefault();
+    setBusy(true);
+    try { setResults((await api(`/api/htr/search?q=${encodeURIComponent(q)}`)).products); } catch (err) { say(err.message); }
+    setBusy(false);
+  };
+  const pull = async (productId) => {
+    setBusy(true);
+    try { onPulled(await api(`/api/projects/${p.id}/htr`, { method: 'POST', body: { productId } })); setResults(null); } catch (err) { say(err.message); }
+    setBusy(false);
+  };
+  return (
+    <div className="htr-bar">
+      {src && !results ? (
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <span className="small">From HTR profile: <b>{src.name}</b>{src.category ? <span className="muted"> · {src.category}</span> : null}{src.pulledAt ? <span className="muted"> · pulled {when(src.pulledAt)}</span> : null}</span>
+          <span className="row">
+            <button className="btn" disabled={busy} onClick={() => pull(src.productId)}>{busy ? 'Pulling…' : 'Refresh'}</button>
+            <button className="linkbtn" onClick={() => setResults([])}>Change product</button>
+          </span>
+        </div>
+      ) : (
+        <>
+          <form className="row" style={{ flexWrap: 'nowrap' }} onSubmit={search}>
+            <input type="text" placeholder="Product name on Hotel Tech Report" value={q} onChange={(e) => setQ(e.target.value)} />
+            <button className="btn primary" disabled={busy || q.trim().length < 2}>{busy ? 'Working…' : 'Find on HTR'}</button>
+          </form>
+          {results && (
+            <div className="htr-results">
+              {results.length === 0 ? <div className="muted small" style={{ padding: '8px 2px' }}>{busy ? 'Searching…' : 'Search for the product, then pick it to fill the form.'}</div> : results.map((r) => (
+                <button key={r.id} className="htr-result" disabled={busy} onClick={() => pull(r.id)}>
+                  <span><b>{r.name}</b> <span className="muted">· {r.category}</span></span>
+                  <span className="muted small">{r.reviews ?? 0} reviews · Pull profile →</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }

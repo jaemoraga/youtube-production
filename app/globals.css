@@ -230,3 +230,8 @@ td.c { text-align: center; } th.c { text-align: center; }
 .internal-body { padding: 0 18px 8px; }
 .internal-group { margin-top: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .internal-foot { display: flex; gap: 8px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--border); }
+.htr-bar { margin: 12px 18px 0; padding: 12px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); }
+.htr-results { margin-top: 8px; display: grid; gap: 4px; }
+.htr-result { display: flex; justify-content: space-between; gap: 12px; text-align: left; font: inherit; font-size: 14px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; cursor: pointer; }
+.htr-result:hover { border-color: var(--accent); }
+textarea.autogrow { field-sizing: content; min-height: 64px; max-height: 420px; }

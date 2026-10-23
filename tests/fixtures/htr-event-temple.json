@@ -1,0 +1,314 @@
+{
+ "htr_get_product": {
+  "product": {
+   "id": 334,
+   "name": "Event Temple",
+   "slug": "event-temple",
+   "status": "published",
+   "company_id": 334,
+   "category_id": 20,
+   "description": "Event Temple offers a suite of powerful sales tools that can help optimize the revenue of any hotel, venue or hospitality group.",
+   "implementation": "Our self serve on-boarding and customer success team are the secret ingredients to seamless implementation.",
+   "differentiation": "Event Temple is an all encompassing CRM and sales & catering system.\n\n• Send e-proposals and contracts that your customers can sign online",
+   "tagline": "Hotel and Venue CRM For Sales & Catering - Book More Deals Faster With Us",
+   "markets": [
+    "na",
+    "europe"
+   ],
+   "tags": [
+    "2021-registered",
+    "2024-awards",
+    "2025-awards",
+    "2026-awards",
+    "winner"
+   ],
+   "company_name": "Event Temple",
+   "category_name": "Event Management Software"
+  }
+ },
+ "htr_get_product_ai_summary": {
+  "hoteliers_say": "Event Temple is praised as a centralized hotel sales and event platform. The biggest gaps are reporting depth, PMS sync, and flexibility for room blocks.",
+  "partners_say": null,
+  "categories": {
+   "functionality": {
+    "label": "Innovative",
+    "summary": "Hoteliers often highlight the functionality as <b>robust</b>."
+   },
+   "user_interface": {
+    "label": "Sophisticated",
+    "summary": "Users praise its user-friendly interface."
+   },
+   "integrations": {
+    "label": "Unified",
+    "summary": "Integrations have potential, though the Cloudbeds rollout was bumpy."
+   },
+   "support": {
+    "label": "World-class",
+    "summary": "Support is easily accessible with fast responses."
+   },
+   "automation": {
+    "label": null,
+    "summary": null
+   },
+   "value": {
+    "label": "Outstanding",
+    "summary": "Hoteliers see a positive return on investment."
+   }
+  },
+  "last_updated_at": null
+ },
+ "htr_get_product_stats": {
+  "product_id": 334,
+  "product_name": "Event Temple",
+  "total_reviews": 452,
+  "recommendation_pct": 99.34,
+  "support_rating": 4.88,
+  "pricing_tier": "multiple"
+ },
+ "htr_get_segment_fit": {
+  "product_id": 334,
+  "by_hotel_type": [
+   {
+    "hotel_type": "boutique",
+    "label": "Boutique Hotels",
+    "reviews_count": 218,
+    "percentage": 16.67
+   },
+   {
+    "hotel_type": "branded",
+    "label": "Branded Hotels",
+    "reviews_count": 189,
+    "percentage": 14.45
+   },
+   {
+    "hotel_type": "conference",
+    "label": "Airport/Conference Hotels",
+    "reviews_count": 170,
+    "percentage": 13
+   }
+  ],
+  "by_adr_band": [
+   {
+    "band": "upscale",
+    "label": "Upscale",
+    "reviews_count": 214,
+    "percentage": 47.77
+   },
+   {
+    "band": "mid-scale",
+    "label": "Mid-Scale",
+    "reviews_count": 135,
+    "percentage": 30.13
+   },
+   {
+    "band": "economy",
+    "label": "Economy",
+    "reviews_count": 0,
+    "percentage": 0
+   }
+  ]
+ },
+ "htr_get_case_studies": {
+  "product_id": 334,
+  "case_studies": [
+   {
+    "case_study_id": 3186,
+    "title": "Prestige Hotels Streamlines Their Groups and Events Using Event Temple",
+    "hotel_types": [],
+    "shown_on_profile": true
+   },
+   {
+    "case_study_id": 2996,
+    "title": "How PEG Hospitality Masters Multi-Property Hotel Sales with Event Temple",
+    "hotel_types": [],
+    "shown_on_profile": true
+   },
+   {
+    "case_study_id": 2944,
+    "title": "Sunridge Hotel Group uses Event Temple",
+    "hotel_types": [],
+    "shown_on_profile": true
+   },
+   {
+    "case_study_id": 2739,
+    "title": "Mastering Hotel Sales with Ease: The Ivy Hotel's Journey",
+    "hotel_types": [],
+    "shown_on_profile": true
+   }
+  ]
+ },
+ "htr_get_case_study": {
+  "case_study_id": 2996,
+  "title": "How PEG Hospitality Masters Multi-Property Hotel Sales with Event Temple",
+  "client_name": "PEG Hospitality",
+  "objectives": {
+   "summary": "PEG needed an easy to use sales and catering solution for all properties.",
+   "items": []
+  },
+  "quote": {
+   "title": "Game-changer",
+   "detail": "“Event Temple has been a game-changer for us, especially when it comes to adoption.”"
+  },
+  "results": {
+   "summary": "Efficiency gains immediately.",
+   "items": [
+    "Consistent approaches across all properties",
+    "Faster onboarding for new employees"
+   ]
+  }
+ },
+ "htr_list_integrations": {
+  "product_id": 334,
+  "integrations": [
+   {
+    "partner_company_name": "Cloudbeds"
+   },
+   {
+    "partner_company_name": "Mews"
+   },
+   {
+    "partner_company_name": "Oracle Hospitality"
+   }
+  ],
+  "total": 3
+ },
+ "htr_get_product_features": {
+  "product": {
+   "id": 334
+  },
+  "selected_feature_ids": [
+   827,
+   444
+  ],
+  "groups": [
+   {
+    "id": 194,
+    "name": "Proposal Management",
+    "is_other": false,
+    "features": [
+     {
+      "id": 827,
+      "name": "eSignatures",
+      "selected": true
+     },
+     {
+      "id": 825,
+      "name": "Customizable BEO, Proposal and Contract Documents",
+      "selected": true
+     }
+    ]
+   },
+   {
+    "id": 197,
+    "name": "Attendee Management",
+    "is_other": false,
+    "features": [
+     {
+      "id": 446,
+      "name": "Event Checkin Management",
+      "selected": false
+     }
+    ]
+   },
+   {
+    "id": 9999999334,
+    "name": "Other",
+    "is_other": true,
+    "features": [
+     {
+      "id": 1,
+      "name": "Ignore me",
+      "selected": true
+     }
+    ]
+   }
+  ]
+ },
+ "htr_get_rankings": {
+  "category_id": 20,
+  "category_name": "Event Management Software",
+  "period": {
+   "id": 5,
+   "start_date": "2026-07-01T00:00:00.000000Z",
+   "end_date": "2026-09-30T00:00:00.000000Z"
+  },
+  "rankings": [
+   {
+    "position": 1,
+    "product_id": 334,
+    "product_name": "Event Temple",
+    "ht_score": 100,
+    "reviews_count": 438
+   },
+   {
+    "position": 2,
+    "product_id": 353,
+    "product_name": "Tripleseat",
+    "ht_score": 95
+   },
+   {
+    "position": 3,
+    "product_id": 1468,
+    "product_name": "Thynk Event Management",
+    "ht_score": 86
+   },
+   {
+    "position": 6,
+    "product_id": 2401,
+    "product_name": "Cendyn Catering",
+    "ht_score": 0
+   }
+  ]
+ },
+ "htr_search_products": {
+  "products": [
+   {
+    "id": 334,
+    "name": "Event Temple",
+    "company_id": 334,
+    "company_name": "Event Temple",
+    "category_name": "Event Management Software",
+    "review_count": 452,
+    "ht_score": 100,
+    "unique_hotels_count": 179
+   },
+   {
+    "id": 1431,
+    "name": "Event Temple (Sales CRM)",
+    "company_id": 334,
+    "company_name": "Event Temple",
+    "category_name": "Hotel Sales Software",
+    "review_count": 347,
+    "ht_score": 100,
+    "unique_hotels_count": 143
+   }
+  ],
+  "total": 2
+ },
+ "htr_get_review_sentiment": {
+  "product_id": 334,
+  "snippets": [
+   {
+    "snippet_id": 1,
+    "review_id": 89515,
+    "snippet": "it saves us so much time",
+    "sentiment": "positive",
+    "similarity_score": 0.43
+   },
+   {
+    "snippet_id": 2,
+    "review_id": 91267,
+    "snippet": "helping save time and improve efficiency",
+    "sentiment": "positive",
+    "similarity_score": 0.52
+   },
+   {
+    "snippet_id": 3,
+    "review_id": 91268,
+    "snippet": "reporting could be deeper",
+    "sentiment": "negative",
+    "similarity_score": 0.4
+   }
+  ]
+ }
+}
