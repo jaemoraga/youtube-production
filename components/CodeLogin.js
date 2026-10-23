@@ -68,7 +68,8 @@ export default function CodeLogin({ as, heading, sub, passwordFallback = false, 
             <input type="text" placeholder="First name" required autoFocus value={f.first} onChange={set('first')} autoComplete="given-name" />
             <input type="text" placeholder="Last name" required value={f.last} onChange={set('last')} autoComplete="family-name" />
           </div>
-          <input type="text" placeholder="Company" required value={f.company} onChange={set('company')} autoComplete="organization" style={{ marginTop: 8 }} />
+          <input type="text" placeholder="Company name" required value={f.company} onChange={set('company')} autoComplete="organization" style={{ marginTop: 8 }} />
+          <p className="hint">We&apos;ll use it to name your project, e.g. &ldquo;Acme Analytics YouTube video&rdquo;.</p>
           <button className="btn primary big" style={{ marginTop: 12 }} disabled={busy}>{busy ? 'Sending…' : 'Email me a code'}</button>
           <button type="button" className="linkbtn" style={{ marginTop: 8 }} onClick={() => setStep('email')}>Use a different email</button>
         </form>

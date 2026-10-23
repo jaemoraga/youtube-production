@@ -35,6 +35,7 @@ export default function ProjectView({ initial, role, templateUrl, job }) {
     <>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap' }}>
         <div style={{ minWidth: 0 }}>
+          <div className="eyebrow" style={{ marginBottom: 6 }}>Pre-production checklist</div>
           <h1>{admin ? p.companyName : p.name}</h1>
           <p className="sub">
             {admin ? <>{p.name} · </> : null}

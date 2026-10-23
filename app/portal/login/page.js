@@ -14,7 +14,7 @@ const EXAMPLES = [
 ];
 
 const STEPS = [
-  { who: 'You', title: 'Send your materials', text: 'Your sponsor dossier, brand assets and a raw product demo, all submitted here.' },
+  { who: 'You', title: 'Complete the pre-production checklist', text: 'Your sponsor dossier, brand assets and a raw product demo, all submitted here.' },
   { who: 'HTR', title: 'We write the script', text: 'Our team turns your dossier and demo into a script.' },
   { who: 'You', title: 'Review the script', text: 'Share your feedback. Once it is final, we lock the script for filming.' },
   { who: 'HTR', title: 'We film', text: 'We shoot the video in studio with a Hotel Tech Report host.' },
@@ -67,7 +67,7 @@ export default async function SponsorLanding() {
             <div className="eyebrow" style={{ marginBottom: 6 }}>Start with step 1</div>
             <CodeLogin as="client" embedded heading="Sign in to your portal" sub="New here? Enter your work email and we'll set up your account." />
             <div className="ready-list">
-              <div className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Inside, you&apos;ll send us:</div>
+              <div className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Your pre-production checklist:</div>
               {READY.map((r) => (
                 <div key={r.title} className="ready-item">
                   <span className="tick-sm" aria-hidden="true">✓</span>
