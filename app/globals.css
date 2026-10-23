@@ -220,3 +220,13 @@ td.c { text-align: center; } th.c { text-align: center; }
   .signin-col { position: static; }
 }
 .steps-label { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 0 0 10px 12px; }
+
+/* ---------- internal dossier (admin only) ---------- */
+.pill.st-internal { background: var(--warn-soft); color: var(--warn); }
+.pill.st-scripting { background: var(--ok-soft); color: var(--ok); }
+.internal { margin-top: 28px; border-style: dashed; }
+.internal-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 18px 4px; }
+.htr-only { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--accent); background: var(--accent-soft); padding: 2px 7px; border-radius: 99px; margin-left: 6px; vertical-align: 2px; }
+.internal-body { padding: 0 18px 8px; }
+.internal-group { margin-top: 20px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.internal-foot { display: flex; gap: 8px; align-items: center; padding: 12px 18px; border-top: 1px solid var(--border); }

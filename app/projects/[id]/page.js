@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import ProjectView from '@/components/ProjectView.js';
 import { Brand } from '@/components/ui.js';
-import { getProject } from '@/lib/projects.js';
+import { forRole, getProject } from '@/lib/projects.js';
 import { requirePage } from '@/lib/session.js';
 import { syncJob } from '@/lib/jobs.js';
 import { getJob } from '@/lib/store.js';
@@ -18,7 +18,7 @@ export default async function AdminProject({ params }) {
   return (
     <div className="wrap narrow">
       <header className="top"><Brand /><div className="row"><a className="linkbtn" href={`/editor/p/${p.id}`}>Editor view</a><a className="linkbtn" href="/">All projects</a></div></header>
-      <ProjectView initial={p} role="admin" job={job && { status: job.status }} />
+      <ProjectView initial={forRole(p, 'admin')} role="admin" job={job && { status: job.status }} />
     </div>
   );
 }

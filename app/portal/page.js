@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { StatusPill } from '@/components/ProjectView.js';
 import TopBar from '@/components/TopBar.js';
-import { listProjects, projectStatus } from '@/lib/projects.js';
+import { forRole, listProjects, projectStatus } from '@/lib/projects.js';
 import { requirePage } from '@/lib/session.js';
 
 export const dynamic = 'force-dynamic';
@@ -9,7 +9,7 @@ export const metadata = { title: 'Sponsor portal · Hotel Tech Report' };
 
 export default async function Portal() {
   const s = await requirePage('client');
-  const projects = await listProjects({ company: s.c });
+  const projects = (await listProjects({ company: s.c })).map((p) => forRole(p, 'client'));
   if (projects.length === 1) redirect(`/portal/p/${projects[0].id}`);
   return (
     <div className="wrap narrow">

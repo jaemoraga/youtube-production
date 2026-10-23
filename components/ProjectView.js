@@ -2,7 +2,7 @@
 // The project checklist. role="client": the sponsor completes items. role="admin": HTR reviews them.
 import { uploadPresigned } from '@vercel/blob/client';
 import { useState } from 'react';
-import { ITEM_LABEL, ITEMS, STATUS_TEXT, projectStatus } from '@/lib/project-shared.js';
+import { INTERNAL_FIELDS, ITEM_LABEL, ITEMS, STATUS_TEXT, projectStatus } from '@/lib/project-shared.js';
 import { assetType, mediaType, safeName } from '@/lib/media.js';
 import { api, bytes, useToast, when } from './ui.js';
 
@@ -39,7 +39,9 @@ export default function ProjectView({ initial, role, templateUrl, job }) {
           <h1>{admin ? p.companyName : p.name}</h1>
           <p className="sub">
             {admin ? <>{p.name} · </> : null}
-            {status === 'approved' ? 'Everything is approved. Thank you!'
+            {status === 'scripting' ? 'Client checklist approved and internal dossier complete. Ready for scripting.'
+              : status === 'internal' ? 'Client checklist approved. Complete the internal dossier below to move to scripting.'
+              : status === 'approved' ? 'Everything is approved. Thank you!'
               : status === 'review' ? (admin ? 'Everything is in. Ready for your review.' : 'All submitted. We’re reviewing and will reach out if we need anything.')
               : admin ? `Waiting on the client: ${done} of 3 submitted.` : `${done} of 3 done. Complete each step below.`}
           </p>
@@ -58,6 +60,7 @@ export default function ProjectView({ initial, role, templateUrl, job }) {
           <Video p={p} admin={admin} reload={reload} say={say} job={job} />
         </Item>
       </div>
+      {admin && <InternalDossier p={p} act={act} />}
       {toast}
     </>
   );
@@ -284,5 +287,59 @@ function Video({ p, admin, reload, say, job }) {
         </>
       )}
     </>
+  );
+}
+
+// HTR-only. Free text copied from the vendor's HTR profile; every field optional.
+function InternalDossier({ p, act }) {
+  const saved = p.internal?.fields || {};
+  const [f, setF] = useState(saved);
+  const [busy, setBusy] = useState(false);
+  const complete = !!p.internal?.completedAt;
+  const dirty = INTERNAL_FIELDS.some((x) => (f[x.key] || '').trim() !== (saved[x.key] || ''));
+  const filled = INTERNAL_FIELDS.filter((x) => (f[x.key] || '').trim()).length;
+  const save = async (extra, msg) => {
+    setBusy(true);
+    const ok = await act({ type: 'internal.save', fields: f, ...extra }, msg);
+    setBusy(false);
+    return ok;
+  };
+  let lastGroup = null;
+  return (
+    <section className="card internal">
+      <div className="internal-head">
+        <div>
+          <div className="step-title">Internal dossier <span className="htr-only">HTR only</span></div>
+          <p className="muted small" style={{ margin: 0 }}>Copy from the vendor&apos;s Hotel Tech Report profile. All fields are optional. The client never sees this.</p>
+        </div>
+        <span className={`pill ${complete ? 'st-approved' : 'st-todo'}`}>{complete ? 'Complete' : `${filled} of ${INTERNAL_FIELDS.length} filled`}</span>
+      </div>
+      <div className="internal-body">
+        {INTERNAL_FIELDS.map((x) => {
+          const heading = x.group && x.group !== lastGroup ? x.group : null;
+          lastGroup = x.group || null;
+          return (
+            <div key={x.key}>
+              {heading && <div className="internal-group">{heading}</div>}
+              <label className="field" style={{ marginTop: heading ? 6 : 14 }}>
+                <span>{x.label}</span>
+                <textarea rows={x.group ? 3 : 4} value={f[x.key] || ''} onChange={(e) => setF({ ...f, [x.key]: e.target.value })} />
+              </label>
+            </div>
+          );
+        })}
+      </div>
+      <div className="internal-foot">
+        <span className="muted small" style={{ flex: 1 }}>
+          {complete ? `Marked complete ${when(p.internal.completedAt)}${p.internal.completedBy ? ` by ${p.internal.completedBy.split('@')[0]}` : ''}.`
+            : p.internal?.updatedAt ? `Last saved ${when(p.internal.updatedAt)}.` : 'Not saved yet.'}
+          {dirty ? ' Unsaved changes.' : ''}
+        </span>
+        <button className="btn" disabled={busy || !dirty} onClick={() => save({}, 'Internal dossier saved')}>Save</button>
+        {complete
+          ? <button className="btn" disabled={busy} onClick={() => save({ complete: false }, 'Reopened')}>Reopen</button>
+          : <button className="btn ok" disabled={busy} onClick={() => save({ complete: true }, 'Internal dossier complete')}>{dirty ? 'Save & mark complete' : 'Mark complete'}</button>}
+      </div>
+    </section>
   );
 }

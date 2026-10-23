@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import ProjectView from '@/components/ProjectView.js';
 import TopBar from '@/components/TopBar.js';
 import { DOSSIER_TEMPLATE_URL } from '@/lib/config.js';
-import { getProject, listProjects } from '@/lib/projects.js';
+import { forRole, getProject, listProjects } from '@/lib/projects.js';
 import { requirePage } from '@/lib/session.js';
 
 export const dynamic = 'force-dynamic';
@@ -18,7 +18,7 @@ export default async function ClientProject({ params }) {
     <div className="wrap narrow">
       <TopBar label={p.companyName} home="/portal" />
       {several && <a className="linkbtn" href="/portal" style={{ marginLeft: -6 }}>← All projects</a>}
-      <ProjectView initial={p} role="client" templateUrl={DOSSIER_TEMPLATE_URL} />
+      <ProjectView initial={forRole(p, 'client')} role="client" templateUrl={DOSSIER_TEMPLATE_URL} />
     </div>
   );
 }

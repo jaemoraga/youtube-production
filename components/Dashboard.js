@@ -160,28 +160,34 @@ const SHORT = { todo: '—', submitted: 'In', changes: 'Fix', approved: '✓' };
 
 function Projects({ projects }) {
   const [show, setShow] = useState('open');
-  const list = (projects || []).filter((p) => show === 'all' || projectStatus(p) !== 'approved')
-    .sort((a, b) => (projectStatus(a) === 'review' ? 0 : 1) - (projectStatus(b) === 'review' ? 0 : 1));
+  const ORDER = { review: 0, internal: 1, waiting: 2, scripting: 3 };
+  const list = (projects || []).filter((p) => {
+    const st = projectStatus(p);
+    return show === 'all' || (show === 'scripting' ? st === 'scripting' : st !== 'scripting');
+  }).sort((a, b) => (ORDER[projectStatus(a)] ?? 9) - (ORDER[projectStatus(b)] ?? 9));
   return (
     <>
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
         <h1>Client projects</h1>
         <select style={{ width: 'auto' }} value={show} onChange={(e) => setShow(e.target.value)}>
-          <option value="open">Open</option><option value="all">All, including approved</option>
+          <option value="open">In pre-production</option><option value="scripting">Ready for scripting</option><option value="all">All</option>
         </select>
       </div>
       <div className="card">
         {projects === null ? <div className="empty">Loading…</div> : list.length === 0 ? (
-          <div className="empty">No open projects. Clients sign up at /portal.</div>
+          <div className="empty">{show === 'scripting' ? 'Nothing ready for scripting yet.' : 'No projects in pre-production. Clients sign up at /portal.'}</div>
         ) : (
           <table>
-            <thead><tr><th>Company</th><th className="hide-sm">Project</th>{ITEMS.map((i) => <th key={i} className="hide-sm c">{{ dossier: 'Dossier', assets: 'Assets', video: 'Video' }[i]}</th>)}<th>Status</th></tr></thead>
+            <thead><tr><th>Company</th><th className="hide-sm">Project</th>{ITEMS.map((i) => <th key={i} className="hide-sm c">{{ dossier: 'Dossier', assets: 'Assets', video: 'Video' }[i]}</th>)}<th className="hide-sm c">Internal</th><th>Status</th></tr></thead>
             <tbody>
               {list.map((p) => (
                 <tr key={p.id} className="click" onClick={() => { location.href = `/projects/${p.id}`; }}>
                   <td className="name">{p.companyName}</td>
                   <td className="hide-sm muted">{p.name}</td>
                   {ITEMS.map((i) => <td key={i} className={`hide-sm c st-text-${p.items[i].status}`}>{SHORT[p.items[i].status]}</td>)}
+                  <td className={`hide-sm c ${p.internal?.completedAt ? 'st-text-approved' : Object.keys(p.internal?.fields || {}).length ? 'st-text-submitted' : 'st-text-todo'}`}>
+                    {p.internal?.completedAt ? '✓' : Object.keys(p.internal?.fields || {}).length ? 'Draft' : '—'}
+                  </td>
                   <td><StatusPill status={projectStatus(p)} /></td>
                 </tr>
               ))}

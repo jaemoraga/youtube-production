@@ -1,5 +1,5 @@
 import { notifyEvent, whoFromSession } from '@/lib/notify.js';
-import { applyAction, getProject, projectStatus } from '@/lib/projects.js';
+import { applyAction, forRole, getProject, projectStatus } from '@/lib/projects.js';
 import { guard } from '@/lib/session.js';
 
 async function load(request, params, roles) {
@@ -14,7 +14,8 @@ async function load(request, params, roles) {
 export async function GET(request, { params }) {
   const { s, p, denied } = await load(request, params, ['admin', 'client', 'editor']);
   if (denied) return denied;
-  return Response.json({ project: { ...p, status: projectStatus(p) }, role: s.r });
+  const view = forRole(p, s.r);
+  return Response.json({ project: { ...view, status: projectStatus(view) }, role: s.r });
 }
 
 // Every change goes through here: { type, item, ...fields }. See applyAction in lib/projects.js.
@@ -25,9 +26,10 @@ export async function POST(request, { params }) {
   if (action.type === 'video.set') return Response.json({ error: 'Upload the video instead.' }, { status: 400 });
   try {
     const who = await whoFromSession(s);
-    const { project, event } = await applyAction(p, who, action);
-    await notifyEvent(project, who, event);
-    return Response.json({ project: { ...project, status: projectStatus(project) } });
+    const { project, event, scripting } = await applyAction(p, who, action);
+    await notifyEvent(project, who, event, { scripting });
+    const view = forRole(project, s.r);
+    return Response.json({ project: { ...view, status: projectStatus(view) } });
   } catch (e) {
     return Response.json({ error: e.message }, { status: e.status || 500 });
   }
