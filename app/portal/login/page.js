@@ -60,7 +60,6 @@ export default async function SponsorLanding() {
             <a key={v.id} className="example" href={`https://www.youtube.com/watch?v=${v.id}`} target="_blank" rel="noreferrer">
               <span className="example-thumb">
                 <img src={`https://i.ytimg.com/vi/${v.id}/hqdefault.jpg`} alt="" loading="lazy" />
-                <span className="play" aria-hidden="true">▶</span>
                 <span className="length">{v.length}</span>
               </span>
               <span className="example-title">{v.title}</span>
