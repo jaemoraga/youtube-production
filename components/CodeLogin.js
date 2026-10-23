@@ -10,7 +10,7 @@ async function post(path, body) {
 
 // Email -> (new clients: name + company) -> 6-digit code -> signed in for 7 days.
 // as="admin": company-domain staff. as="client": sponsors. passwordFallback: admin password until email is set up.
-export default function CodeLogin({ as, heading, sub, passwordFallback = false }) {
+export default function CodeLogin({ as, heading, sub, passwordFallback = false, embedded = false }) {
   const [step, setStep] = useState(passwordFallback ? 'password' : 'email');
   const [f, setF] = useState({ email: '', first: '', last: '', company: '', code: '', password: '' });
   const [busy, setBusy] = useState(false);
@@ -42,11 +42,8 @@ export default function CodeLogin({ as, heading, sub, passwordFallback = false }
     run(async () => { const r = await post('/api/login', { password: f.password }); window.location.href = r.redirect || '/'; });
   };
 
-  return (
-    <main className="login">
-      <span className="brand"><span className="mark"><span /></span>Hotel Tech Report</span>
-      <h1 style={{ marginTop: 28 }}>{heading}</h1>
-      {sub && <p className="sub" style={{ marginBottom: 18 }}>{sub}</p>}
+  const forms = (
+    <>
 
       {step === 'password' && (
         <form onSubmit={password}>
@@ -91,6 +88,24 @@ export default function CodeLogin({ as, heading, sub, passwordFallback = false }
       )}
 
       {err && <div className="alert">{err}</div>}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div>
+        {heading && <div className="signin-title">{heading}</div>}
+        {sub && <p className="muted small" style={{ margin: '2px 0 14px' }}>{sub}</p>}
+        {forms}
+      </div>
+    );
+  }
+  return (
+    <main className="login">
+      <span className="brand"><span className="mark"><span /></span>Hotel Tech Report</span>
+      <h1 style={{ marginTop: 28 }}>{heading}</h1>
+      {sub && <p className="sub" style={{ marginBottom: 18 }}>{sub}</p>}
+      {forms}
     </main>
   );
 }
