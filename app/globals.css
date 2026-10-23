@@ -206,3 +206,17 @@ td.c { text-align: center; } th.c { text-align: center; }
   .hero-title { font-size: 30px; }
   .examples, .ready { grid-template-columns: 1fr; }
 }
+.hero2 { display: grid; grid-template-columns: 1.2fr 1fr; grid-template-areas: "intro aside" "steps aside"; column-gap: 48px; align-items: start; padding-top: 48px; padding-bottom: 48px; }
+.hero2 .intro { grid-area: intro; } .hero2 .steps-col { grid-area: steps; } .hero2 .signin-col { grid-area: aside; }
+.hero2 .hero-sub { margin-bottom: 22px; }
+.process.compact li { padding: 8px 12px; margin-bottom: 2px; }
+.process.compact::before { left: 25px; }
+.signin-col { position: sticky; top: 24px; }
+.ready-list { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 13.5px; }
+.ready-item { display: flex; gap: 8px; margin: 8px 0; line-height: 1.45; }
+.tick-sm { color: var(--ok); font-weight: 700; flex: none; }
+@media (max-width: 820px) {
+  .hero2 { grid-template-columns: 1fr; grid-template-areas: "intro" "aside" "steps"; row-gap: 24px; padding-top: 28px; }
+  .signin-col { position: static; }
+}
+.steps-label { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 0 0 10px 12px; }

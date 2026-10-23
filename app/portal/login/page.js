@@ -38,23 +38,50 @@ export default async function SponsorLanding() {
         <a className="linkbtn" href="#start">Sign in</a>
       </header>
 
-      <section className="hero wrap-wide" id="start">
-        <div>
+      <section className="hero2 wrap-wide" id="start">
+        <div className="intro">
           <div className="eyebrow">YouTube Content Studio</div>
-          <h1 className="hero-title">Your product review video, made by Hotel Tech Report</h1>
+          <h1 className="hero-title">Let&apos;s make your Hotel Tech Report review video</h1>
           <p className="hero-sub">
-            We script, film and edit an independent review of your software and publish it on the
-            Hotel Tech Report YouTube channel, where hoteliers go to research what to buy.
-            It starts with a few materials from you.
+            You&apos;re here because your company is being featured in a product review video on the
+            Hotel Tech Report YouTube channel. This portal is where you send us what we need to make it.
           </p>
         </div>
-        <div className="card pad signin">
-          <CodeLogin as="client" embedded heading="Get started" sub="Sign in or create your account with your work email." />
+        <div className="steps-col">
+          <div className="steps-label">How it works</div>
+          <ol className="process compact">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className={s.who === 'You' ? 'you' : ''}>
+                <span className="pnum">{i + 1}</span>
+                <div>
+                  <div className="ptitle">{s.title} <span className="who">{s.who === 'You' ? 'You' : 'Hotel Tech Report'}</span></div>
+                  <div className="muted small">{s.text}</div>
+                </div>
+              </li>
+            ))}
+          </ol>
         </div>
+
+        <aside className="signin-col">
+          <div className="card pad signin">
+            <div className="eyebrow" style={{ marginBottom: 6 }}>Start with step 1</div>
+            <CodeLogin as="client" embedded heading="Sign in to your portal" sub="New here? Enter your work email and we'll set up your account." />
+            <div className="ready-list">
+              <div className="small" style={{ fontWeight: 600, marginBottom: 6 }}>Inside, you&apos;ll send us:</div>
+              {READY.map((r) => (
+                <div key={r.title} className="ready-item">
+                  <span className="tick-sm" aria-hidden="true">✓</span>
+                  <div><span style={{ fontWeight: 500 }}>{r.title}.</span> <span className="muted">{r.text}</span></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </aside>
       </section>
 
       <section className="wrap-wide band">
         <h2 className="section-title">What the finished video looks like</h2>
+        <p className="muted" style={{ margin: '-10px 0 18px' }}>Recent reviews from the Hotel Tech Report channel. Yours will follow the same format.</p>
         <div className="examples">
           {EXAMPLES.map((v) => (
             <a key={v.id} className="example" href={`https://www.youtube.com/watch?v=${v.id}`} target="_blank" rel="noreferrer">
@@ -66,35 +93,6 @@ export default async function SponsorLanding() {
             </a>
           ))}
         </div>
-      </section>
-
-      <section className="wrap-wide band">
-        <h2 className="section-title">How it works</h2>
-        <p className="muted" style={{ margin: '-10px 0 18px' }}>Seven steps from your materials to a published video. The highlighted steps are yours.</p>
-        <ol className="process">
-          {STEPS.map((s, i) => (
-            <li key={s.title} className={s.who === 'You' ? 'you' : ''}>
-              <span className="pnum">{i + 1}</span>
-              <div>
-                <div className="ptitle">{s.title} <span className="who">{s.who === 'You' ? 'You' : 'Hotel Tech Report'}</span></div>
-                <div className="muted small">{s.text}</div>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="wrap-wide band">
-        <h2 className="section-title">What to have ready for step 1</h2>
-        <div className="ready">
-          {READY.map((r) => (
-            <div key={r.title} className="card pad">
-              <div className="ptitle">{r.title}</div>
-              <div className="muted small">{r.text}</div>
-            </div>
-          ))}
-        </div>
-        <p style={{ marginTop: 22 }}><a className="btn primary" href="#start">Get started</a></p>
       </section>
     </div>
   );
