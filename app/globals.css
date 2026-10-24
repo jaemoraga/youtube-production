@@ -235,3 +235,7 @@ td.c { text-align: center; } th.c { text-align: center; }
 .htr-result { display: flex; justify-content: space-between; gap: 12px; text-align: left; font: inherit; font-size: 14px; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; cursor: pointer; }
 .htr-result:hover { border-color: var(--accent); }
 textarea.autogrow { field-sizing: content; min-height: 64px; max-height: 420px; }
+.short-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; align-items: end; }
+.short-grid label.field { margin-top: 6px; }
+.group-hint { display: block; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12.5px; margin-top: 2px; }
+@media (max-width: 640px) { .short-grid { grid-template-columns: 1fr 1fr; } }

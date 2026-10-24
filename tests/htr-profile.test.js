@@ -21,7 +21,8 @@ test('pulls a full HTR profile into dossier fields', async () => {
   assert.match(f.ratings, /^HT Score: 100 · #1 of 3 ranked in Event Management Software \(Jul 2026 to Sep 2026\)/);
   assert.match(f.ratings, /452 verified reviews from 179 hotels/);
   assert.match(f.ratings, /99% of reviewers would recommend it/);
-  assert.match(f.ratings, /Support rating: 4\.88 \/ 5/);
+  assert.equal(f.starSupport, '4.88');
+  assert.doesNotMatch(f.ratings, /Support rating/);
   assert.match(f.ratings, /Tripleseat \(95\), Thynk Event Management \(86\)/);
   assert.doesNotMatch(f.ratings, /Cendyn/, 'unscored products are not listed');
   assert.match(f.ratings, /HotelTechAwards on profile: 2024, 2025, 2026 \(winner tag\)/);

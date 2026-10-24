@@ -2,7 +2,7 @@
 // The project checklist. role="client": the sponsor completes items. role="admin": HTR reviews them.
 import { uploadPresigned } from '@vercel/blob/client';
 import { useState } from 'react';
-import { INTERNAL_FIELDS, ITEM_LABEL, ITEMS, STATUS_TEXT, projectStatus } from '@/lib/project-shared.js';
+import { GROUP_HINT, INTERNAL_FIELDS, ITEM_LABEL, ITEMS, STATUS_TEXT, projectStatus } from '@/lib/project-shared.js';
 import { assetType, mediaType, safeName } from '@/lib/media.js';
 import { api, bytes, useToast, when } from './ui.js';
 
@@ -293,6 +293,17 @@ function Video({ p, admin, reload, say, job }) {
 // Rows that fit the text (about 80 characters per line), between 3 and 16.
 const fitRows = (v) => Math.max(3, Math.min(16, String(v || '').split('\n').reduce((n, line) => n + Math.max(1, Math.ceil(line.length / 80)), 0) + 1));
 
+// Group consecutive fields: each block has an optional heading; short fields sit side by side.
+function blocks(fields) {
+  const out = [];
+  for (const x of fields) {
+    const last = out[out.length - 1];
+    if (last && x.group && last.group === x.group && !!last.short === !!x.short) last.fields.push(x);
+    else out.push({ group: x.group || null, heading: x.group && (!last || last.group !== x.group) ? x.group : null, short: !!x.short, fields: [x] });
+  }
+  return out;
+}
+
 // HTR-only. Free text copied from the vendor's HTR profile; every field optional.
 function InternalDossier({ p, act, htrEnabled, say }) {
   const saved = p.internal?.fields || {};
@@ -309,7 +320,6 @@ function InternalDossier({ p, act, htrEnabled, say }) {
     setBusy(false);
     return ok;
   };
-  let lastGroup = null;
   return (
     <section className="card internal">
       <div className="internal-head">
@@ -338,19 +348,21 @@ function InternalDossier({ p, act, htrEnabled, say }) {
         </div>
       )}
       <div className="internal-body">
-        {INTERNAL_FIELDS.map((x) => {
-          const heading = x.group && x.group !== lastGroup ? x.group : null;
-          lastGroup = x.group || null;
-          return (
-            <div key={x.key}>
-              {heading && <div className="internal-group">{heading}</div>}
-              <label className="field" style={{ marginTop: heading ? 6 : 14 }}>
-                <span>{x.label}</span>
-                <textarea rows={fitRows(f[x.key])} className="autogrow" value={f[x.key] || ''} onChange={(e) => setF({ ...f, [x.key]: e.target.value })} />
-              </label>
+        {blocks(INTERNAL_FIELDS).map((blk) => (
+          <div key={blk.fields[0].key}>
+            {blk.heading && <div className="internal-group">{blk.heading}{GROUP_HINT[blk.heading] && <span className="group-hint">{GROUP_HINT[blk.heading]}</span>}</div>}
+            <div className={blk.short ? 'short-grid' : undefined}>
+              {blk.fields.map((x, i) => (
+                <label key={x.key} className="field" style={{ marginTop: blk.short ? 6 : blk.heading && i === 0 ? 6 : 14 }}>
+                  <span>{x.label}</span>
+                  {x.short
+                    ? <input type="text" inputMode="decimal" placeholder="e.g. 4.7" value={f[x.key] || ''} onChange={(e) => setF({ ...f, [x.key]: e.target.value })} />
+                    : <textarea rows={fitRows(f[x.key])} className="autogrow" value={f[x.key] || ''} onChange={(e) => setF({ ...f, [x.key]: e.target.value })} />}
+                </label>
+              ))}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
       <div className="internal-foot">
         <span className="muted small" style={{ flex: 1 }}>
