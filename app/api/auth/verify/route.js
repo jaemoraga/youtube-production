@@ -2,7 +2,7 @@
 import { checkCode, normEmail } from '@/lib/codes.js';
 import { createProject, listProjects } from '@/lib/projects.js';
 import { startSession } from '@/lib/session.js';
-import { getUser, registerUser } from '@/lib/users.js';
+import { getMember, registerUser } from '@/lib/users.js';
 
 const MESSAGES = { wrong: 'That code is not right.', expired: 'That code has expired. Request a new one.', locked: 'Too many wrong tries. Request a new code.' };
 
@@ -17,7 +17,7 @@ export async function POST(request) {
     return Response.json({ redirect: '/' });
   }
 
-  let user = await getUser(email);
+  let user = await getMember(email);
   if (!user && meta?.register) user = await registerUser({ email, ...meta.register });
   if (!user) return Response.json({ error: 'Account not found. Start again.' }, { status: 400 });
   if (!(await listProjects({ company: user.company })).length) await createProject(user.company);

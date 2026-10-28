@@ -61,6 +61,14 @@ export default function ProjectView({ initial, role, templateUrl, job, htrEnable
         </Item>
       </div>
       {admin && <InternalDossier p={p} act={act} htrEnabled={htrEnabled} say={say} />}
+      {admin && (
+        <div className="trash-row">
+          <button className="btn danger" onClick={async () => {
+            if (!window.confirm(`Move "${p.companyName}: ${p.name}" to the trash?\n\nThe client and editor lose access right away. You can restore it from the dashboard's Trash for 30 days; after that it's deleted for good, with its files and video.`)) return;
+            if (await act({ type: 'trash' })) window.location.href = '/?trashed=1';
+          }}>Move to trash</button>
+        </div>
+      )}
       {toast}
     </>
   );

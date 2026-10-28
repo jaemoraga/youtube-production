@@ -2,7 +2,7 @@
 import { ADMIN_DOMAIN, EMAIL_ENABLED } from '@/lib/config.js';
 import { issueCode, normEmail, validEmail } from '@/lib/codes.js';
 import { sendEmail } from '@/lib/email.js';
-import { getUser } from '@/lib/users.js';
+import { getMember } from '@/lib/users.js';
 
 export async function POST(request) {
   const body = await request.json().catch(() => ({}));
@@ -16,7 +16,7 @@ export async function POST(request) {
     if (!email.endsWith(`@${ADMIN_DOMAIN}`)) {
       return Response.json({ error: `Admin sign-in is only for @${ADMIN_DOMAIN} addresses.` }, { status: 403 });
     }
-  } else if (!(await getUser(email))) {
+  } else if (!(await getMember(email))) {
     const first = String(body.first || '').trim(), last = String(body.last || '').trim(), company = String(body.company || '').trim();
     if (!first || !last || !company) return Response.json({ needsRegistration: true });
     meta = { as, register: { first, last, companyName: company } };

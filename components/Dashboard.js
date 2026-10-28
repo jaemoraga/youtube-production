@@ -40,7 +40,7 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <Projects projects={projects} />
+      <Projects projects={projects} reload={load} say={say} />
 
       <div className="row" style={{ justifyContent: 'space-between', margin: '40px 0 12px' }}>
         <h1 style={{ fontSize: 20 }}>Transcripts</h1>
@@ -158,8 +158,13 @@ function CompanyRow({ c, origin, reload, say }) {
 
 const SHORT = { todo: '—', submitted: 'In', changes: 'Fix', approved: '✓' };
 
-function Projects({ projects }) {
-  const [show, setShow] = useState('open');
+function Projects({ projects, reload, say }) {
+  const [show, setShow] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('trashed') ? 'trash' : 'open'));
+  const [trash, setTrash] = useState(null);
+  const loadTrash = useCallback(async () => {
+    try { setTrash((await api('/api/projects?trash=1')).projects); } catch (e) { say(e.message); }
+  }, [say]);
+  useEffect(() => { if (show === 'trash') loadTrash(); }, [show, loadTrash]);
   const ORDER = { review: 0, internal: 1, waiting: 2, scripting: 3 };
   const list = (projects || []).filter((p) => {
     const st = projectStatus(p);
@@ -170,11 +175,12 @@ function Projects({ projects }) {
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
         <h1>Client projects</h1>
         <select style={{ width: 'auto' }} value={show} onChange={(e) => setShow(e.target.value)}>
-          <option value="open">In pre-production</option><option value="scripting">Ready for scripting</option><option value="all">All</option>
+          <option value="open">In pre-production</option><option value="scripting">Ready for scripting</option><option value="all">All</option><option value="trash">Trash</option>
         </select>
       </div>
       <div className="card">
-        {projects === null ? <div className="empty">Loading…</div> : list.length === 0 ? (
+        {show === 'trash' ? <Trash items={trash} reload={async () => { await loadTrash(); await reload(); }} say={say} />
+          : projects === null ? <div className="empty">Loading…</div> : list.length === 0 ? (
           <div className="empty">{show === 'scripting' ? 'Nothing ready for scripting yet.' : 'No projects in pre-production. Clients sign up at /portal.'}</div>
         ) : (
           <table>
@@ -196,5 +202,35 @@ function Projects({ projects }) {
         )}
       </div>
     </>
+  );
+}
+
+function Trash({ items, reload, say }) {
+  const days = (iso) => Math.max(0, Math.ceil((new Date(iso) - Date.now()) / 86400000));
+  if (items === null) return <div className="empty">Loading…</div>;
+  if (!items.length) return <div className="empty">Trash is empty. Deleted projects stay here for 30 days.</div>;
+  return (
+    <table>
+      <thead><tr><th>Company</th><th className="hide-sm">Project</th><th className="hide-sm">Deleted</th><th>Deleted for good in</th><th /></tr></thead>
+      <tbody>
+        {items.map((p) => (
+          <tr key={p.id}>
+            <td className="name">{p.companyName}</td>
+            <td className="hide-sm muted">{p.name}</td>
+            <td className="hide-sm muted small">{when(p.deletedAt)}{p.deletedBy ? ` · ${p.deletedBy.split('@')[0]}` : ''}</td>
+            <td className="small">{days(p.expiresAt)} days</td>
+            <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+              <button className="btn" onClick={async () => {
+                try { await api(`/api/projects/${p.id}/restore`, { method: 'POST' }); say('Restored'); await reload(); } catch (e) { say(e.message); }
+              }}>Restore</button>{' '}
+              <button className="linkbtn" style={{ color: 'var(--err)' }} onClick={async () => {
+                if (!window.confirm(`Delete "${p.companyName}: ${p.name}" for good now?\n\nThis removes the project, its brand files, video and transcript. It can't be undone.`)) return;
+                try { await api(`/api/projects/${p.id}/restore`, { method: 'DELETE' }); say('Deleted for good'); await reload(); } catch (e) { say(e.message); }
+              }}>Delete now</button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

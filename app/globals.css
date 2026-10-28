@@ -239,3 +239,4 @@ textarea.autogrow { field-sizing: content; min-height: 64px; max-height: 420px; 
 .short-grid label.field { margin-top: 6px; }
 .group-hint { display: block; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12.5px; margin-top: 2px; }
 @media (max-width: 640px) { .short-grid { grid-template-columns: 1fr 1fr; } }
+.trash-row { margin-top: 28px; display: flex; justify-content: flex-end; }

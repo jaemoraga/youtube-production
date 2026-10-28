@@ -1,9 +1,14 @@
 import { guard } from '@/lib/session.js';
-import { createProject, forRole, listProjects, projectStatus } from '@/lib/projects.js';
+import { createProject, forRole, listProjects, projectStatus, trashExpiry } from '@/lib/projects.js';
 
 export async function GET(request) {
   const [s, denied] = await guard(request, ['admin', 'client', 'editor']);
   if (denied) return denied;
+  if (new URL(request.url).searchParams.get('trash')) {
+    if (s.r !== 'admin') return Response.json({ error: 'Not allowed' }, { status: 403 });
+    const trash = await listProjects({ trash: true });
+    return Response.json({ projects: trash.map((p) => ({ id: p.id, name: p.name, companyName: p.companyName, deletedAt: p.deletedAt, deletedBy: p.deletedBy, expiresAt: trashExpiry(p).toISOString() })) });
+  }
   const projects = await listProjects(s.r === 'client' ? { company: s.c } : {});
   const views = projects.map((p) => forRole(p, s.r));
   return Response.json({ projects: views.map((p) => ({ ...p, status: projectStatus(p) })) });
