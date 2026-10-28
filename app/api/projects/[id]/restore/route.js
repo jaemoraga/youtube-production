@@ -3,11 +3,11 @@ import { getProject, purgeProject, restoreProject } from '@/lib/projects.js';
 import { guard } from '@/lib/session.js';
 
 export async function POST(request, { params }) {
-  const [, denied] = await guard(request, ['admin']);
+  const [s, denied] = await guard(request, ['admin']);
   if (denied) return denied;
   const { id } = await params;
   try {
-    const p = await restoreProject(id);
+    const p = await restoreProject(id, { role: 'admin', email: s.e, name: s.e ? s.e.split('@')[0] : 'HTR' });
     return Response.json({ ok: true, id: p.id });
   } catch (e) {
     return Response.json({ error: e.message }, { status: e.status || 500 });

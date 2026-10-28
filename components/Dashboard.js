@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { ITEMS, projectStatus } from '@/lib/project-shared.js';
+import { projectStatus } from '@/lib/project-shared.js';
 import { StatusPill } from './ProjectView.js';
 import { api, Brand, duration, useToast, when } from './ui.js';
 
@@ -35,15 +35,17 @@ export default function Dashboard() {
         <Brand />
         <div className="row">
           <a className="linkbtn" href="/editor">Editor view</a>
-          <a className="btn primary" href="/upload">Upload</a>
           <button className="linkbtn" onClick={async () => { await api('/api/logout', { method: 'POST' }); location.href = '/login'; }}>Sign out</button>
         </div>
       </header>
 
       <Projects projects={projects} reload={load} say={say} />
 
-      <div className="row" style={{ justifyContent: 'space-between', margin: '40px 0 12px' }}>
-        <h1 style={{ fontSize: 20 }}>Transcripts</h1>
+      <div className="tools">
+        <details>
+          <summary>All videos &amp; transcripts <span className="muted">({(jobs || []).length}{(jobs || []).some((j) => !j.projectId) ? `, ${(jobs || []).filter((j) => !j.projectId).length} not in a project` : ''})</span></summary>
+      <div className="row" style={{ justifyContent: 'space-between', margin: '8px 0 12px' }}>
+        <span className="muted small">Every uploaded video, including ones uploaded outside a project. <a href="/upload">Upload a video directly</a></span>
         {companyOptions.length > 1 && (
           <select style={{ width: 'auto' }} value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="">All companies</option>
@@ -74,7 +76,12 @@ export default function Dashboard() {
         )}
       </div>
 
-      <Companies companies={companies} reload={load} say={say} />
+        </details>
+        <details>
+          <summary>Companies &amp; upload links <span className="muted">({companies.length})</span></summary>
+          <Companies companies={companies} reload={load} say={say} />
+        </details>
+      </div>
       {toast}
     </div>
   );
@@ -95,7 +102,7 @@ function Companies({ companies, reload, say }) {
 
   return (
     <>
-      <h2>Companies</h2>
+      <h2 style={{ marginTop: 12 }}>Companies</h2>
       <p className="muted small" style={{ marginTop: -6 }}>
         Clients sign up themselves at <b>{origin}/portal</b>; their company appears here. <b>New project</b> starts another checklist for a company.
         The upload link is the older, video-only option.
@@ -156,10 +163,9 @@ function CompanyRow({ c, origin, reload, say }) {
   );
 }
 
-const SHORT = { todo: '—', submitted: 'In', changes: 'Fix', approved: '✓' };
 
 function Projects({ projects, reload, say }) {
-  const [show, setShow] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('trashed') ? 'trash' : 'open'));
+  const [show, setShow] = useState(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('trashed') ? 'trash' : 'all'));
   const [trash, setTrash] = useState(null);
   const loadTrash = useCallback(async () => {
     try { setTrash((await api('/api/projects?trash=1')).projects); } catch (e) { say(e.message); }
@@ -175,26 +181,23 @@ function Projects({ projects, reload, say }) {
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
         <h1>Client projects</h1>
         <select style={{ width: 'auto' }} value={show} onChange={(e) => setShow(e.target.value)}>
-          <option value="open">In pre-production</option><option value="scripting">Ready for scripting</option><option value="all">All</option><option value="trash">Trash</option>
+          <option value="all">All projects</option><option value="open">In pre-production</option><option value="scripting">Ready for scripting</option><option value="trash">Trash</option>
         </select>
       </div>
       <div className="card">
         {show === 'trash' ? <Trash items={trash} reload={async () => { await loadTrash(); await reload(); }} say={say} />
           : projects === null ? <div className="empty">Loading…</div> : list.length === 0 ? (
-          <div className="empty">{show === 'scripting' ? 'Nothing ready for scripting yet.' : 'No projects in pre-production. Clients sign up at /portal.'}</div>
+          <div className="empty">{show === 'scripting' ? 'Nothing ready for scripting yet.' : show === 'open' ? 'No projects in pre-production.' : 'No projects yet. Clients sign up at /portal.'}</div>
         ) : (
           <table>
-            <thead><tr><th>Company</th><th className="hide-sm">Project</th>{ITEMS.map((i) => <th key={i} className="hide-sm c">{{ dossier: 'Dossier', assets: 'Assets', video: 'Video' }[i]}</th>)}<th className="hide-sm c">Internal</th><th>Status</th></tr></thead>
+            <thead><tr><th>Company</th><th className="hide-sm">Project</th><th>Status</th><th className="hide-sm">Last activity</th></tr></thead>
             <tbody>
               {list.map((p) => (
                 <tr key={p.id} className="click" onClick={() => { location.href = `/projects/${p.id}`; }}>
                   <td className="name">{p.companyName}</td>
                   <td className="hide-sm muted">{p.name}</td>
-                  {ITEMS.map((i) => <td key={i} className={`hide-sm c st-text-${p.items[i].status}`}>{SHORT[p.items[i].status]}</td>)}
-                  <td className={`hide-sm c ${p.internal?.completedAt ? 'st-text-approved' : Object.keys(p.internal?.fields || {}).length ? 'st-text-submitted' : 'st-text-todo'}`}>
-                    {p.internal?.completedAt ? '✓' : Object.keys(p.internal?.fields || {}).length ? 'Draft' : '—'}
-                  </td>
                   <td><StatusPill status={projectStatus(p)} /></td>
+                  <td className="hide-sm muted small">{when(p.updatedAt || p.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

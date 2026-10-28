@@ -16,11 +16,11 @@ export async function GET(request) {
 
 // HTR starts a new project for a company (the first one is created when the client signs up).
 export async function POST(request) {
-  const [, denied] = await guard(request, ['admin']);
+  const [s, denied] = await guard(request, ['admin']);
   if (denied) return denied;
   const { company, name } = await request.json().catch(() => ({}));
   try {
-    return Response.json({ project: forRole(await createProject(company, name), 'admin') });
+    return Response.json({ project: forRole(await createProject(company, name, { role: 'admin', email: s.e, name: s.e ? s.e.split('@')[0] : 'HTR' }), 'admin') });
   } catch (e) {
     return Response.json({ error: e.message }, { status: e.status || 500 });
   }

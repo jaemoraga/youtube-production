@@ -240,3 +240,30 @@ textarea.autogrow { field-sizing: content; min-height: 64px; max-height: 420px; 
 .group-hint { display: block; text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12.5px; margin-top: 2px; }
 @media (max-width: 640px) { .short-grid { grid-template-columns: 1fr 1fr; } }
 .trash-row { margin-top: 28px; display: flex; justify-content: flex-end; }
+
+/* ---------- admin project overview ---------- */
+.overview { padding: 6px 18px; margin-bottom: 16px; }
+.check { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.check:last-child { border-bottom: 0; }
+.check-title { font-weight: 600; }
+.check-icon { width: 26px; height: 26px; flex: none; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+.ck-done { background: var(--ok-soft); color: var(--ok); }
+.ck-partial { background: var(--accent-soft); color: var(--accent); }
+.ck-warn { background: var(--warn-soft); color: var(--warn); }
+.ck-error { background: var(--err-soft); color: var(--err); }
+.ck-todo { background: var(--border); color: var(--muted); }
+.ov-item { display: inline-flex; align-items: center; gap: 5px; margin-right: 12px; white-space: nowrap; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); display: inline-block; }
+.dot.st-submitted { background: var(--accent); } .dot.st-approved { background: var(--ok); } .dot.st-changes { background: var(--warn); }
+.admin-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 16px; align-items: start; }
+.person { padding: 10px 0; border-bottom: 1px solid var(--border); }
+.person:last-child { border-bottom: 0; }
+.timeline { list-style: none; margin: 8px 0 0; padding: 0 0 0 22px; max-height: 360px; overflow-y: auto; background: linear-gradient(var(--border), var(--border)) 6px 0 / 2px 100% no-repeat; }
+.timeline li { position: relative; padding: 0 0 12px 4px; }
+.timeline li::before { content: ''; position: absolute; left: -19px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); }
+.timeline li.from-client::before { background: var(--accent); }
+@media (max-width: 760px) { .admin-grid { grid-template-columns: 1fr; } }
+.tools { margin-top: 40px; display: grid; gap: 10px; }
+.tools details { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 0 16px; }
+.tools summary { cursor: pointer; padding: 14px 0; font-weight: 500; }
+.tools details[open] { padding-bottom: 16px; }

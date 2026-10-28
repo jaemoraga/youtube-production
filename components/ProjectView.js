@@ -2,7 +2,7 @@
 // The project checklist. role="client": the sponsor completes items. role="admin": HTR reviews them.
 import { uploadPresigned } from '@vercel/blob/client';
 import { useState } from 'react';
-import { GROUP_HINT, INTERNAL_FIELDS, ITEM_LABEL, ITEMS, STATUS_TEXT, projectStatus } from '@/lib/project-shared.js';
+import { GROUP_HINT, INTERNAL_FIELDS, ITEM_LABEL, ITEMS, STATUS_TEXT, projectStatus, timeline } from '@/lib/project-shared.js';
 import { assetType, mediaType, safeName } from '@/lib/media.js';
 import { api, bytes, useToast, when } from './ui.js';
 
@@ -13,7 +13,7 @@ export function StatusPill({ status, forClient = false }) {
   return <span className={`pill st-${status}`}>{text}</span>;
 }
 
-export default function ProjectView({ initial, role, templateUrl, job, htrEnabled = false }) {
+export default function ProjectView({ initial, role, templateUrl, job, htrEnabled = false, people = [] }) {
   const [p, setP] = useState(initial);
   const [toast, say] = useToast();
   const admin = role === 'admin';
@@ -48,6 +48,15 @@ export default function ProjectView({ initial, role, templateUrl, job, htrEnable
         </div>
         <span style={{ flex: 'none', marginTop: 8 }}><StatusPill status={status} forClient={!admin} /></span>
       </div>
+
+      {admin && <Overview p={p} job={job} htrEnabled={htrEnabled} />}
+      {admin && (
+        <div className="admin-grid">
+          <People people={people} />
+          <Timeline p={p} job={job} />
+        </div>
+      )}
+      {admin && <h2 className="section-title" style={{ marginTop: 32 }}>Client checklist</h2>}
 
       <div className="steps">
         <Item n={1} item="dossier" p={p} admin={admin} act={act}>
@@ -94,7 +103,7 @@ function Item({ n, item, p, admin, act, children }) {
         <span className={`num st-${it.status}`}>{it.status === 'approved' || it.status === 'submitted' ? '✓' : n}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="step-title">{ITEM_LABEL[item]}</div>
-          {it.submittedAt && <div className="muted small">Submitted {when(it.submittedAt)}</div>}
+          {it.submittedAt && <div className="muted small">Submitted {when(it.submittedAt)}{admin && it.submittedBy?.name ? <> by {it.submittedBy.name}{it.submittedBy.email ? <> · <a href={`mailto:${it.submittedBy.email}`}>{it.submittedBy.email}</a></> : null}</> : null}</div>}
         </div>
         <StatusPill status={it.status} />
       </header>
@@ -329,7 +338,7 @@ function InternalDossier({ p, act, htrEnabled, say }) {
     return ok;
   };
   return (
-    <section className="card internal">
+    <section className="card internal" id="internal-dossier">
       <div className="internal-head">
         <div>
           <div className="step-title">Internal dossier <span className="htr-only">HTR only</span></div>
@@ -439,5 +448,93 @@ function HtrPull({ p, enabled, src, say, onPulled }) {
         </>
       )}
     </div>
+  );
+}
+
+// ---------- admin-only panels ----------
+const fmtNum = (n) => Number(n).toLocaleString('en-US');
+
+function Check({ state, title, children }) {
+  const icon = { done: '✓', partial: '◐', warn: '!', todo: '○', error: '✕' }[state];
+  return (
+    <div className="check">
+      <span className={`check-icon ck-${state}`} aria-hidden="true">{icon}</span>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <div className="check-title">{title}</div>
+        <div className="muted small">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Overview({ p, job, htrEnabled }) {
+  const sts = ITEMS.map((i) => p.items[i].status);
+  const submitted = sts.filter((s) => s === 'submitted' || s === 'approved').length;
+  const approved = sts.filter((s) => s === 'approved').length;
+  const clientState = sts.includes('changes') ? 'warn' : approved === 3 ? 'done' : submitted ? 'partial' : 'todo';
+
+  const internal = p.internal || {};
+  const filled = Object.keys(internal.fields || {}).length;
+  const htrState = internal.completedAt ? 'done' : filled ? 'partial' : 'todo';
+
+  let tState = 'todo'; let tText = 'No video uploaded yet.';
+  if (job?.status === 'processing') { tState = 'partial'; tText = `Transcribing ${job.filename || 'the video'}…`; }
+  if (job?.status === 'error') { tState = 'error'; tText = `Failed${job.error ? `: ${job.error}` : ''}. Ask the client to upload again.`; }
+  if (job?.status === 'done') {
+    const wpm = job.seconds && job.words != null ? job.words / (job.seconds / 60) : null;
+    const thin = wpm != null && wpm < 40;
+    tState = thin ? 'warn' : 'done';
+    tText = [job.durationText, job.speakers != null && `${job.speakers} speaker${job.speakers === 1 ? '' : 's'}`, job.words != null && `${fmtNum(job.words)} words`].filter(Boolean).join(' · ')
+      + (thin ? '. Very few words for the length; check the audio before scripting.' : '.');
+  }
+
+  return (
+    <section className="card overview">
+      <Check state={clientState} title="Client submission">
+        {submitted} of 3 submitted, {approved} approved{sts.includes('changes') ? ', update requested' : ''}.{' '}
+        {ITEMS.map((i) => <span key={i} className="ov-item"><span className={`dot st-${p.items[i].status}`} />{ITEM_LABEL[i]}</span>)}
+      </Check>
+      <Check state={htrState} title="HTR profile data">
+        {internal.htr ? <>Pulled from <b>{internal.htr.name}</b> {when(internal.htr.pulledAt)}. </> : htrEnabled ? 'Not pulled yet. ' : 'Filled by hand (HTR data feed not connected). '}
+        {filled} of {INTERNAL_FIELDS.length} fields filled{internal.completedAt ? ', marked complete' : ''}. <a href="#internal-dossier">Open</a>
+      </Check>
+      <Check state={tState} title="Transcript">
+        {tText} {job?.status === 'done' && <a href={`/jobs/${job.id}`}>Open transcript</a>}
+      </Check>
+    </section>
+  );
+}
+
+function People({ people }) {
+  return (
+    <section className="card pad">
+      <div className="step-title">People at the client</div>
+      {!people.length ? <p className="muted small">No one from the client has signed up yet.</p> : people.map((x) => (
+        <div key={x.email} className="person">
+          <div style={{ fontWeight: 500 }}>{x.name}</div>
+          <div className="small"><a href={`mailto:${x.email}`}>{x.email}</a></div>
+          <div className="muted small">
+            {x.joinedAt ? `Joined ${when(x.joinedAt)}` : 'Joined date unknown'}{x.lastLoginAt ? ` · last signed in ${when(x.lastLoginAt)}` : ''}
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+function Timeline({ p, job }) {
+  const events = timeline(p, job);
+  return (
+    <section className="card pad">
+      <div className="step-title">Timeline</div>
+      <ol className="timeline">
+        {events.map((e, i) => (
+          <li key={i} className={e.client ? 'from-client' : ''}>
+            <div className="small">{e.text}</div>
+            <div className="muted small">{when(e.at)}{e.by?.name ? ` · ${e.by.name}` : ''}{e.client ? ' (client)' : ''}</div>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
