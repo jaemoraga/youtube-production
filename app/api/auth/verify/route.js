@@ -37,5 +37,5 @@ export async function POST(request) {
       : { subject: `Client signed in: ${name} (${company})`, text: `${name} (${email}) from ${company} signed in to the sponsor portal.\n\n${siteUrl()}/projects/${project?.id || ''}` });
   });
   await startSession({ role: 'client', email, company: user.company });
-  return Response.json({ redirect: '/portal' });
+  return Response.json({ redirect: '/client-submission/youtube' });
 }

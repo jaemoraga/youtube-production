@@ -16,8 +16,8 @@ export default async function ClientProject({ params }) {
   const several = (await listProjects({ company: s.c })).length > 1;
   return (
     <div className="wrap narrow">
-      <TopBar label={p.companyName} home="/portal" />
-      {several && <a className="linkbtn" href="/portal" style={{ marginLeft: -6 }}>← All projects</a>}
+      <TopBar label={p.companyName} home="/client-submission/youtube" />
+      {several && <a className="linkbtn" href="/client-submission/youtube" style={{ marginLeft: -6 }}>← All projects</a>}
       <ProjectView initial={forRole(p, 'client')} role="client" templateUrl={DOSSIER_TEMPLATE_URL} />
     </div>
   );

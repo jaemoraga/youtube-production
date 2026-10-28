@@ -30,7 +30,7 @@ const READY = [
 ];
 
 export default async function SponsorLanding() {
-  if ((await getSession())?.r === 'client') redirect('/portal');
+  if ((await getSession())?.r === 'client') redirect('/client-submission/youtube');
   return (
     <div className="landing">
       <header className="top wrap-wide" style={{ marginBottom: 0 }}>

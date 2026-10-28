@@ -104,7 +104,7 @@ function Companies({ companies, reload, say }) {
     <>
       <h2 style={{ marginTop: 12 }}>Companies</h2>
       <p className="muted small" style={{ marginTop: -6 }}>
-        Clients sign up themselves at <b>{origin}/portal</b>; their company appears here. <b>New project</b> starts another checklist for a company.
+        Clients sign up themselves at <b>{origin}/client-submission/youtube</b>; their company appears here. <b>New project</b> starts another checklist for a company.
         The upload link is the older, video-only option.
       </p>
       <div className="card">
@@ -187,7 +187,7 @@ function Projects({ projects, reload, say }) {
       <div className="card">
         {show === 'trash' ? <Trash items={trash} reload={async () => { await loadTrash(); await reload(); }} say={say} />
           : projects === null ? <div className="empty">Loading…</div> : list.length === 0 ? (
-          <div className="empty">{show === 'scripting' ? 'Nothing ready for scripting yet.' : show === 'open' ? 'No projects in pre-production.' : 'No projects yet. Clients sign up at /portal.'}</div>
+          <div className="empty">{show === 'scripting' ? 'Nothing ready for scripting yet.' : show === 'open' ? 'No projects in pre-production.' : 'No projects yet. Clients sign up at /client-submission/youtube.'}</div>
         ) : (
           <table>
             <thead><tr><th>Company</th><th className="hide-sm">Project</th><th>Status</th><th className="hide-sm">Last activity</th></tr></thead>
