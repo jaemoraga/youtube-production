@@ -58,7 +58,7 @@ Three roles share one site:
 
 | Who | Where | Signs in with |
 |---|---|---|
-| Client (sponsor) | `/client-submission/youtube` | work email → 6-digit code. First visit asks name and company. |
+| Client (sponsor) | `sponsorships.hoteltechinsider.com/client-submission/youtube` | work email → 6-digit code. First visit asks name and company. |
 | HTR admin | `/` | `@hoteltechreport.com` email → code. Stays signed in 7 days. |
 | Editor | `/editor` | the one shared `EDITOR_PASSWORD` |
 
