@@ -267,3 +267,9 @@ textarea.autogrow { field-sizing: content; min-height: 64px; max-height: 420px; 
 .tools details { border: 1px solid var(--border); border-radius: 12px; background: var(--surface); padding: 0 16px; }
 .tools summary { cursor: pointer; padding: 14px 0; font-weight: 500; }
 .tools details[open] { padding-bottom: 16px; }
+
+/* ---------- admin client preview ---------- */
+.preview-banner { position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 20px; background: var(--warn-soft); border-bottom: 1px solid var(--warn); font-size: 14px; }
+.preview-banner a { font-weight: 500; }
+.preview-lock { border: 0; margin: 0; padding: 0; min-width: 0; }
+.preview-lock .drop { cursor: not-allowed; }

@@ -38,7 +38,7 @@ export default async function AdminProject({ params }) {
 
   return (
     <div className="wrap">
-      <header className="top"><Brand /><div className="row"><a className="linkbtn" href={`/editor/p/${p.id}`}>Editor view</a><a className="linkbtn" href="/">All projects</a></div></header>
+      <header className="top"><Brand /><div className="row"><a className="linkbtn" href={`/projects/${p.id}/preview`}>Client view</a><a className="linkbtn" href={`/editor/p/${p.id}`}>Editor view</a><a className="linkbtn" href="/">All projects</a></div></header>
       <ProjectView initial={forRole(p, 'admin')} role="admin" htrEnabled={HTR_ENABLED()} job={video} people={people} />
     </div>
   );

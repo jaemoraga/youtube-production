@@ -1,10 +1,14 @@
 'use client';
 // The project checklist. role="client": the sponsor completes items. role="admin": HTR reviews them.
 import { uploadPresigned } from '@vercel/blob/client';
-import { useState } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { GROUP_HINT, INTERNAL_FIELDS, ITEM_LABEL, ITEMS, STATUS_TEXT, projectStatus, timeline } from '@/lib/project-shared.js';
 import { assetType, mediaType, safeName } from '@/lib/media.js';
 import { api, bytes, useToast, when } from './ui.js';
+
+// Admin "client preview": everything renders as the client sees it, but nothing can be changed.
+const Preview = createContext(false);
+const PREVIEW_MSG = 'Preview only: nothing is saved.';
 
 const fileUrl = (path) => `/api/files?p=${encodeURIComponent(path)}`;
 
@@ -13,12 +17,13 @@ export function StatusPill({ status, forClient = false }) {
   return <span className={`pill st-${status}`}>{text}</span>;
 }
 
-export default function ProjectView({ initial, role, templateUrl, job, htrEnabled = false, people = [] }) {
+export default function ProjectView({ initial, role, templateUrl, job, htrEnabled = false, people = [], preview = false }) {
   const [p, setP] = useState(initial);
   const [toast, say] = useToast();
   const admin = role === 'admin';
 
   const act = async (action, ok) => {
+    if (preview) { say(PREVIEW_MSG); return false; }
     try {
       const d = await api(`/api/projects/${p.id}`, { method: 'POST', body: action });
       setP(d.project);
@@ -26,13 +31,13 @@ export default function ProjectView({ initial, role, templateUrl, job, htrEnable
       return true;
     } catch (e) { say(e.message); return false; }
   };
-  const reload = async () => { try { setP((await api(`/api/projects/${p.id}`)).project); } catch { /* ignore */ } };
+  const reload = async () => { if (preview) return; try { setP((await api(`/api/projects/${p.id}`)).project); } catch { /* ignore */ } };
 
   const status = projectStatus(p);
   const done = ITEMS.filter((i) => ['submitted', 'approved'].includes(p.items[i].status)).length;
 
   return (
-    <>
+    <Preview.Provider value={preview}>
       <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap' }}>
         <div style={{ minWidth: 0 }}>
           <div className="eyebrow" style={{ marginBottom: 6 }}>Pre-production checklist</div>
@@ -79,7 +84,7 @@ export default function ProjectView({ initial, role, templateUrl, job, htrEnable
         </div>
       )}
       {toast}
-    </>
+    </Preview.Provider>
   );
 }
 
@@ -193,7 +198,9 @@ function Assets({ p, admin, act, say }) {
   const [uploading, setUploading] = useState(null); // { name, pct }
   const [over, setOver] = useState(false);
 
+  const preview = useContext(Preview);
   async function addFiles(list) {
+    if (preview) { say(PREVIEW_MSG); return; }
     for (const file of Array.from(list || [])) {
       if (!assetType(file.name)) { say(`${file.name}: file type not supported`); continue; }
       try {
@@ -258,8 +265,10 @@ function Video({ p, admin, reload, say, job }) {
   const [replacing, setReplacing] = useState(!it.jobId);
   const [pct, setPct] = useState(null);
 
+  const preview = useContext(Preview);
   async function upload(file) {
     if (!file) return;
+    if (preview) { say(PREVIEW_MSG); return; }
     if (!mediaType(file.name)) { say('Please choose a video file (MP4, MOV, …).'); return; }
     try {
       setPct(0);
