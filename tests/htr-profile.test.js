@@ -15,7 +15,8 @@ const fake = (overrides = {}) => async (name, args = {}) => {
 test('pulls a full HTR profile into dossier fields', async () => {
   const calls = [];
   const call = async (name, args) => { calls.push([name, args]); return fake()(name, args); };
-  const { fields: f, source } = await pullProfile(call, 334);
+  const { fields: f, source, failed } = await pullProfile(call, 334);
+  assert.deepEqual(failed, []);
   assert.equal(source.name, 'Event Temple');
   assert.ok(Object.keys(f).every((k) => INTERNAL_FIELDS.some((x) => x.key === k)), 'only known fields');
   assert.match(f.ratings, /^HT Score: 100 · #1 of 3 ranked in Event Management Software \(Jul 2026 to Sep 2026\)/);
@@ -46,7 +47,8 @@ test('pulls a full HTR profile into dossier fields', async () => {
 });
 
 test('one failing source does not sink the pull', async () => {
-  const { fields } = await pullProfile(fake({ htr_get_segment_fit: new Error('boom'), htr_get_rankings: new Error('boom') }), 334);
+  const { fields, failed } = await pullProfile(fake({ htr_get_segment_fit: new Error('boom'), htr_get_rankings: new Error('boom') }), 334);
+  assert.deepEqual(failed.sort(), ['htr_get_rankings: boom', 'htr_get_segment_fit: boom'], 'failed sources are reported for the alert email');
   assert.equal(fields.hotelTypes, undefined);
   assert.match(fields.ratings, /^HT Score: 100\n452 verified reviews/);
   assert.ok(fields.hoteliersSay);
