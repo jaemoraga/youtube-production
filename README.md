@@ -3,7 +3,7 @@
 Upload a video, get a transcript with speaker names and timestamps. Clients can upload too,
 each through their own private link.
 
-- **You** sign in at the site's address, see every transcript, upload your own videos, rename
+- **You** sign in at `/admin`, see every transcript, upload your own videos, rename
   speakers, and download TXT, Word (DOCX) or subtitles (SRT).
 - **A client** gets a link like `https://your-site/u/Zk3p9…`. It shows only their company name
   and an upload box. They can't see transcripts or any other client.
@@ -48,7 +48,7 @@ so the site picks up the storage keys.
 ### 5. Sign in
 Open the project's address (shown on the Vercel project page, e.g.
 `htr-transcribe.vercel.app`; you can add a custom domain like `transcribe.hoteltechreport.com`
-under Settings → Domains). Sign in with your `ADMIN_PASSWORD`. Bookmark it.
+under Settings → Domains). Go to `/admin` and sign in. Bookmark it.
 
 ---
 
@@ -58,8 +58,9 @@ Three roles share one site:
 
 | Who | Where | Signs in with |
 |---|---|---|
-| Client (sponsor) | `sponsorships.hoteltechinsider.com/client-submission/youtube` | work email → 6-digit code. First visit asks name and company. |
-| HTR admin | `/` | `@hoteltechreport.com` email → code. Stays signed in 7 days. |
+| Anyone (public home) | `youtube-studio.hoteltechinsider.com` | what we make, examples, one email box. New emails become leads (account, no project, admin alert); existing sponsors sign in here too. |
+| Client (sponsor) | `youtube-studio.hoteltechinsider.com/client-submission/youtube` | work email → 6-digit code. First visit asks name and company, and creates their project. |
+| HTR admin | `/admin` | `@hoteltechreport.com` email → code. Stays signed in 7 days. |
 | Editor | `/editor` | the one shared `EDITOR_PASSWORD` |
 
 Each client project has three steps: sponsor dossier (a Google Doc link), brand materials

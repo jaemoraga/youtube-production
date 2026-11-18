@@ -1,13 +1,17 @@
 'use client';
 import { useEffect, useState } from 'react';
 
-export function Brand({ href = '/' }) {
+export function Brand({ href = '/admin' }) {
   return (
     <a className="brand" href={href}>
       <span className="mark"><span /></span>Transcribe
     </a>
   );
 }
+
+// Where to send someone whose session ran out, based on the area of the site they are in.
+const loginFor = (path) => path.startsWith('/editor') ? '/editor/login'
+  : path.startsWith('/client-submission') ? '/client-submission/youtube/login' : '/admin/login';
 
 export async function api(path, { method = 'GET', body } = {}) {
   const res = await fetch(path, {
@@ -16,7 +20,7 @@ export async function api(path, { method = 'GET', body } = {}) {
     body: body ? JSON.stringify(body) : undefined,
     cache: 'no-store',
   });
-  if (res.status === 401 && typeof window !== 'undefined' && !path.includes('/login')) window.location.href = '/login';
+  if (res.status === 401 && typeof window !== 'undefined' && !path.includes('/login')) window.location.href = loginFor(window.location.pathname);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
   return data;

@@ -17,7 +17,7 @@ test('transcript ready email', async () => {
   assert.deepEqual(m.to, ['jordan@hoteltechreport.com']);
   assert.equal(m.subject, 'Transcript ready: Acme (21m 4s)');
   assert.match(m.text, /Words: 3,000/);
-  assert.match(m.text, /https:\/\/studio\.example\/projects\/p1/);
+  assert.match(m.text, /https:\/\/studio\.example\/admin\/projects\/p1/);
   assert.doesNotMatch(m.text, /silent or broken/);
 });
 

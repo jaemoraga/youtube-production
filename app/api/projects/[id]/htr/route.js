@@ -14,7 +14,7 @@ export async function POST(request, { params }) {
   const { id } = await params;
   const project = await getProject(id);
   if (!project) return Response.json({ error: 'Not found' }, { status: 404 });
-  const link = `${siteUrl()}/projects/${id}`;
+  const link = `${siteUrl()}/admin/projects/${id}`;
   const { productId } = await request.json().catch(() => ({}));
   if (!Number.isInteger(Number(productId)) || Number(productId) < 1) return Response.json({ error: 'Choose a product first.' }, { status: 400 });
   try {

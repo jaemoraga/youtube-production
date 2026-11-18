@@ -17,14 +17,16 @@ export async function POST(request) {
 
   if (meta?.as === 'admin') {
     await startSession({ role: 'admin', email });
-    return Response.json({ redirect: '/' });
+    return Response.json({ redirect: '/admin' });
   }
 
   let user = await getMember(email);
   const isNew = !user && !!meta?.register;
   if (isNew) user = await registerUser({ email, ...meta.register });
   if (!user) return Response.json({ error: 'Account not found. Start again.' }, { status: 400 });
-  if (!(await listProjects({ company: user.company })).length) {
+  // Sign-ups from the public home page are leads: no project until HTR sells and creates one.
+  const lead = meta?.intent === 'interest';
+  if (!lead && !(await listProjects({ company: user.company })).length) {
     await createProject(user.company, null, { role: 'client', email, name: `${user.first} ${user.last}`.trim() });
   }
   await touchLogin(user);
@@ -32,9 +34,12 @@ export async function POST(request) {
   after(async () => {
     const company = (await getCompanies()).find((c) => c.slug === user.company)?.name || user.company;
     const name = `${user.first} ${user.last}`.trim();
-    await adminAlert(isNew
-      ? { subject: `New client account: ${name} at ${company}`, text: `${name} (${email}) just created an account for ${company}.${meta?.register?.companyName && meta.register.companyName !== company ? `\nThey typed "${meta.register.companyName}" and were added to the existing ${company} company by email domain.` : ''}\n\n${siteUrl()}/projects/${project?.id || ''}` }
-      : { subject: `Client signed in: ${name} (${company})`, text: `${name} (${email}) from ${company} signed in to the sponsor portal.\n\n${siteUrl()}/projects/${project?.id || ''}` });
+    const where = project ? `${siteUrl()}/admin/projects/${project.id}` : `${siteUrl()}/admin`;
+    await adminAlert(isNew && lead && !project
+      ? { subject: `New YouTube video lead: ${name} at ${company}`, text: `${name} (${email}) at ${company} entered their email on the YouTube Content Studio home page.\n\nThey have an account but no project. Create one from the admin when they buy.\n\n${where}` }
+      : isNew
+      ? { subject: `New client account: ${name} at ${company}`, text: `${name} (${email}) just created an account for ${company}.${meta?.register?.companyName && meta.register.companyName !== company ? `\nThey typed "${meta.register.companyName}" and were added to the existing ${company} company by email domain.` : ''}\n\n${where}` }
+      : { subject: `Client signed in: ${name} (${company})`, text: `${name} (${email}) from ${company} signed in to the sponsor portal.\n\n${where}` });
   });
   await startSession({ role: 'client', email, company: user.company });
   return Response.json({ redirect: '/client-submission/youtube' });

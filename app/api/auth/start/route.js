@@ -11,7 +11,7 @@ export async function POST(request) {
   if (!validEmail(email)) return Response.json({ error: 'Enter a valid email address.' }, { status: 400 });
   if (!EMAIL_ENABLED) return Response.json({ error: 'Email sign-in is not set up yet.' }, { status: 503 });
 
-  let meta = { as };
+  let meta = { as, ...(as === 'client' && body.intent === 'interest' ? { intent: 'interest' } : {}) };
   if (as === 'admin') {
     if (!email.endsWith(`@${ADMIN_DOMAIN}`)) {
       return Response.json({ error: `Admin sign-in is only for @${ADMIN_DOMAIN} addresses.` }, { status: 403 });
@@ -19,7 +19,7 @@ export async function POST(request) {
   } else if (!(await getMember(email))) {
     const first = String(body.first || '').trim(), last = String(body.last || '').trim(), company = String(body.company || '').trim();
     if (!first || !last || !company) return Response.json({ needsRegistration: true });
-    meta = { as, register: { first, last, companyName: company } };
+    meta = { ...meta, register: { first, last, companyName: company } };
   }
 
   try {

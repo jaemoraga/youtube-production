@@ -12,5 +12,5 @@ export async function POST(request) {
     return Response.json({ error: 'Wrong password.' }, { status: 401 });
   }
   await startSession({ role: 'admin', email: null });
-  return Response.json({ ok: true, redirect: '/' });
+  return Response.json({ ok: true, redirect: '/admin' });
 }

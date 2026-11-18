@@ -76,7 +76,7 @@ export default function TranscriptView({ id }) {
     <div className="wrap">
       <header className="top">
         <Brand />
-        <a className="linkbtn" href="/">All transcripts</a>
+        <a className="linkbtn" href="/admin">All transcripts</a>
       </header>
       <Title value={name} onSave={saveTitle} />
       <p className="sub">{job.title ? <>Original file: {job.filename} · </> : null}{job.companyName} · uploaded {when(job.createdAt)}{job.source === 'client' ? ' by the client' : ''} · {bytes(job.size)}</p>
@@ -163,7 +163,7 @@ export default function TranscriptView({ id }) {
     return (
       <button className="btn danger" onClick={async () => {
         if (!confirm('Delete this transcript (and the video if it is still stored)? This cannot be undone.')) return;
-        try { await api(`/api/jobs/${id}`, { method: 'DELETE' }); location.href = '/'; } catch (e) { say(e.message); }
+        try { await api(`/api/jobs/${id}`, { method: 'DELETE' }); location.href = '/admin'; } catch (e) { say(e.message); }
       }}>Delete</button>
     );
   }

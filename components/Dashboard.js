@@ -35,7 +35,7 @@ export default function Dashboard() {
         <Brand />
         <div className="row">
           <a className="linkbtn" href="/editor">Editor view</a>
-          <button className="linkbtn" onClick={async () => { await api('/api/logout', { method: 'POST' }); location.href = '/login'; }}>Sign out</button>
+          <button className="linkbtn" onClick={async () => { await api('/api/logout', { method: 'POST' }); location.href = '/admin/login'; }}>Sign out</button>
         </div>
       </header>
 
@@ -45,7 +45,7 @@ export default function Dashboard() {
         <details>
           <summary>All videos &amp; transcripts <span className="muted">({(jobs || []).length}{(jobs || []).some((j) => !j.projectId) ? `, ${(jobs || []).filter((j) => !j.projectId).length} not in a project` : ''})</span></summary>
       <div className="row" style={{ justifyContent: 'space-between', margin: '8px 0 12px' }}>
-        <span className="muted small">Every uploaded video, including ones uploaded outside a project. <a href="/upload">Upload a video directly</a></span>
+        <span className="muted small">Every uploaded video, including ones uploaded outside a project. <a href="/admin/upload">Upload a video directly</a></span>
         {companyOptions.length > 1 && (
           <select style={{ width: 'auto' }} value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="">All companies</option>
@@ -63,7 +63,7 @@ export default function Dashboard() {
             <thead><tr><th>File</th><th className="hide-sm">Company</th><th>Uploaded</th><th className="hide-sm">Length</th><th>Status</th></tr></thead>
             <tbody>
               {shown.map((j) => (
-                <tr key={j.id} className="click" onClick={() => { location.href = `/jobs/${j.id}`; }}>
+                <tr key={j.id} className="click" onClick={() => { location.href = `/admin/jobs/${j.id}`; }}>
                   <td className="name" title={j.filename}>{j.title || j.filename}</td>
                   <td className="hide-sm">{j.companyName}{j.source === 'client' ? <span className="muted small"> · client</span> : null}</td>
                   <td className="muted">{when(j.createdAt)}</td>
@@ -136,7 +136,7 @@ function CompanyRow({ c, origin, reload, say }) {
         </div>
         <div className="row">
           <button className="btn" onClick={async () => {
-            try { const d = await api('/api/projects', { method: 'POST', body: { company: c.slug } }); location.href = `/projects/${d.project.id}`; } catch (e) { say(e.message); }
+            try { const d = await api('/api/projects', { method: 'POST', body: { company: c.slug } }); location.href = `/admin/projects/${d.project.id}`; } catch (e) { say(e.message); }
           }}>New project</button>
           <button className="btn" onClick={() => navigator.clipboard.writeText(link).then(() => say('Link copied'))}>Copy upload link</button>
           <button className="linkbtn" onClick={() => setOpen(!open)}>{open ? 'Close' : 'Edit'}</button>
@@ -193,7 +193,7 @@ function Projects({ projects, reload, say }) {
             <thead><tr><th>Company</th><th className="hide-sm">Project</th><th>Status</th><th className="hide-sm">Last activity</th></tr></thead>
             <tbody>
               {list.map((p) => (
-                <tr key={p.id} className="click" onClick={() => { location.href = `/projects/${p.id}`; }}>
+                <tr key={p.id} className="click" onClick={() => { location.href = `/admin/projects/${p.id}`; }}>
                   <td className="name">{p.companyName}</td>
                   <td className="hide-sm muted">{p.name}</td>
                   <td><StatusPill status={projectStatus(p)} /></td>

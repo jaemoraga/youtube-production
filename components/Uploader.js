@@ -53,7 +53,7 @@ export default function Uploader({ mode, token, companySlug, companyName, compan
         method: 'POST',
         body: { pathname: blob.pathname, filename: file.name, token: admin ? undefined : token, terms: admin ? terms : undefined },
       });
-      if (admin && res.id) { window.location.href = `/jobs/${res.id}`; return; }
+      if (admin && res.id) { window.location.href = `/admin/jobs/${res.id}`; return; }
       if (!admin && !res.ok) throw new Error('The upload worked but transcription could not start. Please let us know.');
       setPhase('done');
     } catch (e) {

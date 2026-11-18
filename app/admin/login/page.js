@@ -6,6 +6,6 @@ import { getSession } from '@/lib/session.js';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminLogin() {
-  if ((await getSession())?.r === 'admin') redirect('/');
+  if ((await getSession())?.r === 'admin') redirect('/admin');
   return <CodeLogin as="admin" heading="HTR admin" sub={`For @${ADMIN_DOMAIN} team members.`} passwordFallback={!EMAIL_ENABLED} />;
 }

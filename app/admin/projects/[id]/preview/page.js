@@ -19,7 +19,7 @@ export default async function ClientPreview({ params }) {
         <span><b>Client preview.</b> This is what {p.companyName} sees. Nothing you click here is saved.</span>
         <span className="row">
           <a href="/client-submission/youtube/login" target="_blank" rel="noreferrer">Sign-in page ↗</a>
-          <a href={`/projects/${p.id}`}>← Back to project</a>
+          <a href={`/admin/projects/${p.id}`}>← Back to project</a>
         </span>
       </div>
       <div className="wrap narrow">

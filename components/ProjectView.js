@@ -288,7 +288,7 @@ function Video({ p, admin, reload, say, job }) {
     return (
       <div className="row">
         <span className="muted small" style={{ flex: 1 }}>{it.filename}{job ? ` · transcript ${job.status === 'done' ? 'ready' : job.status === 'error' ? 'failed' : 'in progress'}` : ''}</span>
-        <a className="btn" href={`/jobs/${it.jobId}`}>Transcript & editor link</a>
+        <a className="btn" href={`/admin/jobs/${it.jobId}`}>Transcript & editor link</a>
       </div>
     );
   }
@@ -508,7 +508,7 @@ function Overview({ p, job, htrEnabled }) {
         {filled} of {INTERNAL_FIELDS.length} fields filled{internal.completedAt ? ', marked complete' : ''}. <a href="#internal-dossier">Open</a>
       </Check>
       <Check state={tState} title="Transcript">
-        {tText} {job?.status === 'done' && <a href={`/jobs/${job.id}`}>Open transcript</a>}
+        {tText} {job?.status === 'done' && <a href={`/admin/jobs/${job.id}`}>Open transcript</a>}
       </Check>
     </section>
   );

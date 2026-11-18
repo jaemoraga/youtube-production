@@ -10,7 +10,8 @@ async function post(path, body) {
 
 // Email -> (new clients: name + company) -> 6-digit code -> signed in for 7 days.
 // as="admin": company-domain staff. as="client": sponsors. passwordFallback: admin password until email is set up.
-export default function CodeLogin({ as, heading, sub, passwordFallback = false, embedded = false }) {
+// intent="interest": sign-up from the public home page. Creates the account but no project.
+export default function CodeLogin({ as, heading, sub, intent, passwordFallback = false, embedded = false }) {
   const [step, setStep] = useState(passwordFallback ? 'password' : 'email');
   const [f, setF] = useState({ email: '', first: '', last: '', company: '', code: '', password: '' });
   const [busy, setBusy] = useState(false);
@@ -25,7 +26,7 @@ export default function CodeLogin({ as, heading, sub, passwordFallback = false, 
   const sendCode = (e) => {
     e?.preventDefault();
     run(async () => {
-      const body = { email: f.email, as, ...(step === 'register' ? { first: f.first, last: f.last, company: f.company } : {}) };
+      const body = { email: f.email, as, intent, ...(step === 'register' ? { first: f.first, last: f.last, company: f.company } : {}) };
       const r = await post('/api/auth/start', body);
       if (r.needsRegistration) setStep('register');
       else setStep('code');
@@ -39,7 +40,7 @@ export default function CodeLogin({ as, heading, sub, passwordFallback = false, 
 
   const password = (e) => {
     e.preventDefault();
-    run(async () => { const r = await post('/api/login', { password: f.password }); window.location.href = r.redirect || '/'; });
+    run(async () => { const r = await post('/api/login', { password: f.password }); window.location.href = r.redirect || '/admin'; });
   };
 
   const forms = (
@@ -69,7 +70,7 @@ export default function CodeLogin({ as, heading, sub, passwordFallback = false, 
             <input type="text" placeholder="Last name" required value={f.last} onChange={set('last')} autoComplete="family-name" />
           </div>
           <input type="text" placeholder="Company name" required value={f.company} onChange={set('company')} autoComplete="organization" style={{ marginTop: 8 }} />
-          <p className="hint">We&apos;ll use it to name your project, e.g. &ldquo;Acme Analytics YouTube video&rdquo;.</p>
+          {intent !== 'interest' && <p className="hint">We&apos;ll use it to name your project, e.g. &ldquo;Acme Analytics YouTube video&rdquo;.</p>}
           <button className="btn primary big" style={{ marginTop: 12 }} disabled={busy}>{busy ? 'Sending…' : 'Email me a code'}</button>
           <button type="button" className="linkbtn" style={{ marginTop: 8 }} onClick={() => setStep('email')}>Use a different email</button>
         </form>
