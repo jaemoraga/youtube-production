@@ -88,6 +88,10 @@ company; personal addresses (gmail etc.) get their own.
    Claude uses). The app keeps the connection, encrypted, and renews it on its own. Optional
    overrides: `HTR_MCP_URL` (defaults to `https://admin-mcp.hoteltechreport.com/mcp/htr`) and
    `HTR_MCP_KEY` (a fixed admin API key, used instead of the sign-in when set).
+   **Script writing.** Add `ANTHROPIC_API_KEY` (an Anthropic API key) to turn on **Generate script**.
+   Optional: `SCRIPT_MODEL` (defaults to `claude-opus-5-5`). The prompts come from
+   `prompts/youtube-review-prompts.md`, an export of the "Youtube Product Review Prompts" Google Doc;
+   after replacing that file run `node scripts/build-prompts.mjs`.
 4. **Redeploy.** Everyone is signed out once (new session cookie). From then on admins use email
    codes and `ADMIN_PASSWORD` stops working.
 
