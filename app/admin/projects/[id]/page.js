@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import ProjectView from '@/components/ProjectView.js';
 import { Brand } from '@/components/ui.js';
-import { HTR_ENABLED } from '@/lib/htr.js';
+import { htrStatus } from '@/lib/htr.js';
 import { syncJob } from '@/lib/jobs.js';
 import { forRole, getProject } from '@/lib/projects.js';
 import { requirePage } from '@/lib/session.js';
@@ -39,7 +39,7 @@ export default async function AdminProject({ params }) {
   return (
     <div className="wrap">
       <header className="top"><Brand /><div className="row"><a className="linkbtn" href={`/admin/projects/${p.id}/preview`}>Client view</a><a className="linkbtn" href={`/editor/p/${p.id}`}>Editor view</a><a className="linkbtn" href="/admin">All projects</a></div></header>
-      <ProjectView initial={forRole(p, 'admin')} role="admin" htrEnabled={HTR_ENABLED()} job={video} people={people} />
+      <ProjectView initial={forRole(p, 'admin')} role="admin" htr={await htrStatus()} job={video} people={people} />
     </div>
   );
 }

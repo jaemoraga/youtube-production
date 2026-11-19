@@ -83,9 +83,11 @@ company; personal addresses (gmail etc.) get their own.
 | `EDITOR_PASSWORD` | 8+ characters; give it to your editor |
 | `DOSSIER_TEMPLATE_URL` | optional: the Google Doc clients copy (defaults to the current Video Vendor Application doc) |
 
-3. **Optional: HTR profile data.** To fill the internal dossier from a vendor's Hotel Tech
-   Report profile with one click, add `HTR_MCP_URL` (the HTR data server's address) and
-   `HTR_MCP_KEY` (an admin API key for it, sent as `Authorization: Bearer <key>`).
+3. **HTR profile data.** Nothing to set. On any project's Internal dossier, click
+   **Connect Hotel Tech Report** once and sign in with an HTR admin account (the same sign-in
+   Claude uses). The app keeps the connection, encrypted, and renews it on its own. Optional
+   overrides: `HTR_MCP_URL` (defaults to `https://admin-mcp.hoteltechreport.com/mcp/htr`) and
+   `HTR_MCP_KEY` (a fixed admin API key, used instead of the sign-in when set).
 4. **Redeploy.** Everyone is signed out once (new session cookie). From then on admins use email
    codes and `ADMIN_PASSWORD` stops working.
 
