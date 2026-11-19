@@ -273,3 +273,35 @@ textarea.autogrow { field-sizing: content; min-height: 64px; max-height: 420px; 
 .preview-banner a { font-weight: 500; }
 .preview-lock { border: 0; margin: 0; padding: 0; min-width: 0; }
 .preview-lock .drop { cursor: not-allowed; }
+
+/* script */
+.script-entry, .script-share { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 16px; }
+.script-share.on { border-color: var(--ok); }
+.script-problem { margin: 16px 0 0; }
+.script-steps { list-style: none; margin: 14px 0; padding: 0; }
+.script-steps li { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0 7px 26px; border-bottom: 1px solid var(--border); position: relative; color: var(--muted); }
+.script-steps li::before { content: ''; position: absolute; left: 4px; top: 14px; width: 9px; height: 9px; border-radius: 50%; background: var(--border-strong); }
+.script-steps li.ok { color: var(--text); } .script-steps li.ok::before { background: var(--ok); }
+.script-steps li.now { color: var(--text); font-weight: 500; } .script-steps li.now::before { background: var(--accent); animation: pulse 1.2s infinite; }
+.script-steps li.bad::before { background: var(--err); }
+@keyframes pulse { 50% { opacity: .3; } }
+.script-stack > * + * { margin-top: 16px; }
+.script-stack > h1 + .sub { margin-top: 0; }
+.script-body { margin-top: 14px; }
+.script-para { padding: 2px 0 2px 14px; border-left: 3px solid transparent; margin-bottom: 14px; }
+.script-para.has { border-left-color: var(--accent); }
+.script-para p { margin: 0; white-space: pre-wrap; font-size: 16px; line-height: 1.7; }
+.script-add { opacity: 0; padding: 2px 6px; margin-left: -6px; }
+.script-para:hover .script-add, .script-add:focus { opacity: 1; }
+@media (hover: none) { .script-add { opacity: 1; } }
+.script-new { margin-top: 8px; }
+.script-new textarea, .decision textarea, .script-edit, .card.pad > textarea { width: 100%; font: inherit; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface); color: var(--text); }
+.script-edit { min-height: 560px; margin: 14px 0 10px; font-size: 15px; line-height: 1.65; }
+.script-comment { margin-top: 8px; }
+.script-comment blockquote, .decision blockquote, .script-new blockquote, .script-old { margin: 6px 0; padding: 4px 10px; border-left: 3px solid var(--border-strong); color: var(--muted); font-size: 13.5px; }
+.script-how summary { cursor: pointer; font-weight: 600; }
+.script-step { border-top: 1px solid var(--border); padding: 8px 0; }
+.script-step summary { font-weight: 500; }
+.script-step pre { white-space: pre-wrap; font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--bg); padding: 12px; border-radius: 8px; max-height: 420px; overflow: auto; }
+.decision { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
+.decision-rec { margin: 10px 0; padding: 10px 12px; border-radius: 9px; background: var(--warn-soft); font-size: 14px; }

@@ -17,7 +17,7 @@ export function StatusPill({ status, forClient = false }) {
   return <span className={`pill st-${status}`}>{text}</span>;
 }
 
-export default function ProjectView({ initial, role, templateUrl, job, htr = null, people = [], preview = false }) {
+export default function ProjectView({ initial, role, templateUrl, job, htr = null, people = [], preview = false, script = null }) {
   const htrEnabled = !!htr?.connected;
   const [p, setP] = useState(initial);
   const [toast, say] = useToast();
@@ -75,7 +75,28 @@ export default function ProjectView({ initial, role, templateUrl, job, htr = nul
           <Video p={p} admin={admin} reload={reload} say={say} job={job} />
         </Item>
       </div>
+      {!admin && script && (
+        <section className="card step st-border-submitted" style={{ marginTop: 12 }}>
+          <header className="step-head">
+            <span className={`num ${script.approvedAt ? 'st-approved' : 'st-submitted'}`}>{script.approvedAt ? '✓' : 4}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="step-title">Your script</div>
+              <div className="muted small">{script.approvedAt ? 'Approved. Locked for filming.' : 'Ready for your review. Leave comments on any paragraph, or approve it.'}</div>
+            </div>
+            <a className="btn primary" href={preview ? undefined : `/client-submission/youtube/p/${p.id}/script`}>{script.approvedAt ? 'Open script' : 'Review script'}</a>
+          </header>
+        </section>
+      )}
       {admin && <InternalDossier p={p} act={act} htr={htr} say={say} />}
+      {admin && status === 'scripting' && (
+        <section className="card pad script-entry" id="script">
+          <div>
+            <div className="step-title">Script</div>
+            <div className="muted small">{script?.line || 'Everything is in. Generate the script from the two dossiers and the demo transcript.'}</div>
+          </div>
+          <a className="btn primary" href={`/admin/projects/${p.id}/script`}>{script ? 'Open script' : 'Generate script'}</a>
+        </section>
+      )}
       {admin && (
         <div className="trash-row">
           <button className="btn danger" onClick={async () => {

@@ -4,6 +4,7 @@ import { Brand } from '@/components/ui.js';
 import { htrStatus } from '@/lib/htr.js';
 import { syncJob } from '@/lib/jobs.js';
 import { forRole, getProject } from '@/lib/projects.js';
+import { getScript } from '@/lib/script.js';
 import { requirePage } from '@/lib/session.js';
 import { getCompanies, getJob, readJSON, transcriptPath } from '@/lib/store.js';
 import { getUser } from '@/lib/users.js';
@@ -36,10 +37,23 @@ export default async function AdminProject({ params }) {
     return { name: `${c.first || ''} ${c.last || ''}`.trim() || c.email, email: c.email, joinedAt: u?.createdAt || null, lastLoginAt: u?.lastLoginAt || null };
   }));
 
+  const sc = await getScript(p.id);
+  const open = (sc?.comments || []).filter((c) => c.status === 'open').length;
+  const held = (sc?.comments || []).filter((c) => c.status === 'needs-decision').length;
+  const drafted = (sc?.comments || []).filter((c) => c.status === 'drafted').length;
+  const script = sc && {
+    line: sc.client?.approvedAt ? 'Approved by the client. Locked for filming.'
+      : !sc.versions.length ? 'Being written.'
+        : drafted ? `Revisions are drafted and waiting for your review${held ? `, and ${held} ${held === 1 ? 'request needs' : 'requests need'} your decision` : ''}.`
+        : held ? `${held} client ${held === 1 ? 'request needs' : 'requests need'} your decision.`
+          : open ? `${open} new client ${open === 1 ? 'comment' : 'comments'}.`
+            : sc.shared ? `The client can see version ${sc.shared.version}.` : 'Written. Not shown to the client yet.',
+  };
+
   return (
     <div className="wrap">
       <header className="top"><Brand /><div className="row"><a className="linkbtn" href={`/admin/projects/${p.id}/preview`}>Client view</a><a className="linkbtn" href={`/editor/p/${p.id}`}>Editor view</a><a className="linkbtn" href="/admin">All projects</a></div></header>
-      <ProjectView initial={forRole(p, 'admin')} role="admin" htr={await htrStatus()} job={video} people={people} />
+      <ProjectView initial={forRole(p, 'admin')} role="admin" htr={await htrStatus()} job={video} people={people} script={script} />
     </div>
   );
 }
