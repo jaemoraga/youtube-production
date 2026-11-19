@@ -1,7 +1,7 @@
 'use client';
 // The project checklist. role="client": the sponsor completes items. role="admin": HTR reviews them.
 import { uploadPresigned } from '@vercel/blob/client';
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
 import { GROUP_HINT, INTERNAL_FIELDS, ITEM_LABEL, ITEMS, STATUS_TEXT, projectStatus, timeline } from '@/lib/project-shared.js';
 import { assetType, mediaType, safeName } from '@/lib/media.js';
 import { api, bytes, useToast, when } from './ui.js';
@@ -17,7 +17,8 @@ export function StatusPill({ status, forClient = false }) {
   return <span className={`pill st-${status}`}>{text}</span>;
 }
 
-export default function ProjectView({ initial, role, templateUrl, job, htrEnabled = false, people = [], preview = false }) {
+export default function ProjectView({ initial, role, templateUrl, job, htr = null, people = [], preview = false }) {
+  const htrEnabled = !!htr?.connected;
   const [p, setP] = useState(initial);
   const [toast, say] = useToast();
   const admin = role === 'admin';
@@ -74,7 +75,7 @@ export default function ProjectView({ initial, role, templateUrl, job, htrEnable
           <Video p={p} admin={admin} reload={reload} say={say} job={job} />
         </Item>
       </div>
-      {admin && <InternalDossier p={p} act={act} htrEnabled={htrEnabled} say={say} />}
+      {admin && <InternalDossier p={p} act={act} htr={htr} say={say} />}
       {admin && (
         <div className="trash-row">
           <button className="btn danger" onClick={async () => {
@@ -331,7 +332,7 @@ function blocks(fields) {
 }
 
 // HTR-only. Free text copied from the vendor's HTR profile; every field optional.
-function InternalDossier({ p, act, htrEnabled, say }) {
+function InternalDossier({ p, act, htr, say }) {
   const saved = p.internal?.fields || {};
   const [f, setF] = useState(saved);
   const [busy, setBusy] = useState(false);
@@ -355,7 +356,7 @@ function InternalDossier({ p, act, htrEnabled, say }) {
         </div>
         <span className={`pill ${complete ? 'st-approved' : 'st-todo'}`}>{complete ? 'Complete' : `${filled} of ${INTERNAL_FIELDS.length} filled`}</span>
       </div>
-      <HtrPull p={p} enabled={htrEnabled} src={src} say={say} onPulled={(data) => {
+      <HtrPull p={p} htr={htr} src={src} say={say} onPulled={(data) => {
         const next = { ...f };
         const skipped = {};
         for (const [k, v] of Object.entries(data.fields)) {
@@ -406,14 +407,30 @@ function InternalDossier({ p, act, htrEnabled, say }) {
 }
 
 // Find the vendor's product on Hotel Tech Report and pull its profile into the form.
-function HtrPull({ p, enabled, src, say, onPulled }) {
+function HtrPull({ p, htr, src, say, onPulled }) {
+  const enabled = !!htr?.connected;
   const [q, setQ] = useState(p.companyName || '');
   const [results, setResults] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState('');
+  // Coming back from the Hotel Tech Report sign-in: ?htr=connected, or ?htr=<what went wrong>.
+  useEffect(() => {
+    const u = new URL(window.location.href);
+    const v = u.searchParams.get('htr');
+    if (!v) return;
+    if (v === 'connected') say('Hotel Tech Report connected'); else setProblem(v);
+    u.searchParams.delete('htr');
+    window.history.replaceState(null, '', u.pathname + u.search + u.hash);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!enabled) {
     return (
-      <div className="htr-bar muted small">
-        Connect the Hotel Tech Report data feed to fill this from the vendor&apos;s profile automatically (set HTR_MCP_URL and HTR_MCP_KEY in Vercel).
+      <div className="htr-bar row" style={{ justifyContent: 'space-between' }}>
+        <span className="muted small">
+          {htr?.broken ? 'The Hotel Tech Report sign-in has expired. Connect again to fill this from the vendor\u2019s profile.'
+            : 'Connect Hotel Tech Report once to fill this from the vendor\u2019s profile automatically. You sign in with your HTR admin account.'}
+          {problem ? <><br /><b>Could not connect: {problem}</b></> : null}
+        </span>
+        <a className="btn primary" href={`/api/htr/oauth/start?back=${encodeURIComponent(`/admin/projects/${p.id}`)}`}>Connect Hotel Tech Report</a>
       </div>
     );
   }
@@ -504,7 +521,7 @@ function Overview({ p, job, htrEnabled }) {
         {ITEMS.map((i) => <span key={i} className="ov-item"><span className={`dot st-${p.items[i].status}`} />{ITEM_LABEL[i]}</span>)}
       </Check>
       <Check state={htrState} title="HTR profile data">
-        {internal.htr ? <>Pulled from <b>{internal.htr.name}</b> {when(internal.htr.pulledAt)}. </> : htrEnabled ? 'Not pulled yet. ' : 'Filled by hand (HTR data feed not connected). '}
+        {internal.htr ? <>Pulled from <b>{internal.htr.name}</b> {when(internal.htr.pulledAt)}. </> : htrEnabled ? 'Not pulled yet. ' : 'Filled by hand (Hotel Tech Report not connected). '}
         {filled} of {INTERNAL_FIELDS.length} fields filled{internal.completedAt ? ', marked complete' : ''}. <a href="#internal-dossier">Open</a>
       </Check>
       <Check state={tState} title="Transcript">

@@ -1,5 +1,5 @@
 // Admin: find the vendor's product on Hotel Tech Report to link a project to its profile.
-import { HTR_ENABLED, htrSession } from '@/lib/htr.js';
+import { htrSession, htrStatus } from '@/lib/htr.js';
 import { guard } from '@/lib/session.js';
 
 export const maxDuration = 30;
@@ -7,7 +7,7 @@ export const maxDuration = 30;
 export async function GET(request) {
   const [, denied] = await guard(request, ['admin']);
   if (denied) return denied;
-  if (!HTR_ENABLED()) return Response.json({ enabled: false, products: [] });
+  if (!(await htrStatus()).connected) return Response.json({ enabled: false, products: [] });
   const q = (new URL(request.url).searchParams.get('q') || '').trim().slice(0, 100);
   if (q.length < 2) return Response.json({ enabled: true, products: [] });
   try {
