@@ -21,7 +21,7 @@ async function load(request, params) {
 }
 
 const view = (s, script) => (s.r === 'admin'
-  ? { script: S.forAdmin(script), ai: { ready: S.AI_READY(), model: S.SCRIPT_MODEL() } }
+  ? { script: S.forAdmin(script), ai: { ready: S.AI_READY(), model: S.SCRIPT_MODEL(), provider: S.PROVIDER() } }
   : { script: S.forClient(script) });
 
 export async function GET(request, { params }) {
@@ -57,15 +57,19 @@ export async function POST(request, { params }) {
           const r = await S.share(p, who); script = r.script;
           await toClient(r.first ? `Your script is ready to review: ${p.name}` : `Updated script: ${p.name}`,
             r.first ? `The script for ${p.name} is ready for your review. Open it to read it and leave comments on any paragraph, then send us your feedback or approve it.`
-              : `We've updated the script for ${p.name}. Open it to see the latest version.`);
+              : r.released ? `We've gone through your comments on the script for ${p.name} and updated it. We've replied to ${r.released === 1 ? 'your comment' : `${r.released} of your comments`} so you can see what changed.`
+                : `We've updated the script for ${p.name}. Open it to see the latest version.`);
           break;
         }
+        case 'draft-reply': script = await S.editDraftReply(p, a.id, a.text); break;
         case 'unshare': script = await S.unshare(p); break;
         case 'revise': {
           const r = await S.implementRevisions(p, { only: a.only || null }); script = r.script;
           extra = { implemented: r.implemented, held: r.held };
-          if (r.implemented) await toClient(`We've updated your script: ${p.name}`, `We've gone through your comments on the script for ${p.name}. ${r.implemented} ${r.implemented === 1 ? 'has' : 'have'} been worked into the script, and we've replied to each one so you can see what changed.${r.held ? ' We\'re still reviewing the rest and will reply shortly.' : ''}`);
-          if (r.held) await adminAlert({ subject: `${r.held} script ${r.held === 1 ? 'request needs' : 'requests need'} your decision: ${p.companyName}`, text: `Implement revisions held back ${r.held} client ${r.held === 1 ? 'request' : 'requests'} on ${p.name} because ${r.held === 1 ? 'it affects' : 'they affect'} the editorial side of the review. Nothing was changed or sent for ${r.held === 1 ? 'it' : 'them'}.\n\n${adminUrl}` }).catch(() => {});
+          await adminAlert({
+            subject: `Revisions ready for your review: ${p.companyName}`,
+            text: `Implement revisions has finished on ${p.name}.\n\n${r.implemented} ${r.implemented === 1 ? 'request was' : 'requests were'} worked into a new draft, each with a drafted reply.\n${r.held} ${r.held === 1 ? 'request is' : 'requests are'} held for your decision.\n\nThe client has not been shown anything. Review the draft and the replies, then approve to send them.\n\n${adminUrl}`,
+          }).catch(() => {});
           break;
         }
         case 'reply': {

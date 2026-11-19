@@ -40,9 +40,11 @@ export default async function AdminProject({ params }) {
   const sc = await getScript(p.id);
   const open = (sc?.comments || []).filter((c) => c.status === 'open').length;
   const held = (sc?.comments || []).filter((c) => c.status === 'needs-decision').length;
+  const drafted = (sc?.comments || []).filter((c) => c.status === 'drafted').length;
   const script = sc && {
     line: sc.client?.approvedAt ? 'Approved by the client. Locked for filming.'
       : !sc.versions.length ? 'Being written.'
+        : drafted ? `Revisions are drafted and waiting for your review${held ? `, and ${held} ${held === 1 ? 'request needs' : 'requests need'} your decision` : ''}.`
         : held ? `${held} client ${held === 1 ? 'request needs' : 'requests need'} your decision.`
           : open ? `${open} new client ${open === 1 ? 'comment' : 'comments'}.`
             : sc.shared ? `The client can see version ${sc.shared.version}.` : 'Written. Not shown to the client yet.',

@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { mock, test } from 'node:test';
 
 process.env.APP_SECRET = 'x'.repeat(32);
-process.env.ANTHROPIC_API_KEY = 'sk-test';
+process.env.OPENAI_API_KEY = 'sk-test';
+process.env.ANTHROPIC_API_KEY = 'unused-when-openai-is-set';
 
 const blobs = new Map();
 mock.module('@vercel/blob', {
@@ -25,16 +26,18 @@ globalThis.fetch = async (url, init = {}) => {
   url = String(url);
   if (url === `https://docs.google.com/document/d/${DOC}/export?format=txt`) return new Response(dossierText, { headers: { 'content-type': 'text/plain; charset=utf-8' } });
   if (url === 'https://www.trustyou.com') return new Response(`<html><style>x{}</style><body><h1>Customer Experience Platform</h1>${'<p>Reviews, surveys and AI replies in one inbox.</p>'.repeat(10)}</body></html>`, { headers: { 'content-type': 'text/html' } });
-  if (url === 'https://api.anthropic.com/v1/messages') {
-    assert.equal(init.headers['x-api-key'], 'sk-test');
+  if (url === 'https://api.openai.com/v1/chat/completions') {
+    assert.equal(init.headers.authorization, 'Bearer sk-test');
     const body = JSON.parse(init.body);
+    assert.equal(body.model, 'gpt-6.1-sol');
+    assert.ok(body.max_completion_tokens > 0 && body.temperature === undefined);
+    assert.ok(body.messages.every((m) => typeof m.content === 'string'));
     ai.calls.push(body);
-    const last = body.messages.at(-1);
-    const prompt = typeof last.content === 'string' ? last.content : last.content[0].text;
+    const prompt = body.messages.at(-1).content;
     const text = ai.reply ? ai.reply(prompt) : /Entertainment edit|Final Assembly/.test(prompt.slice(0, 80))
       ? `Title card: X\n===SCRIPT START===\n${SCRIPT_V1}\n===SCRIPT END===\nGrade: A`
       : `answer ${ai.calls.length}`;
-    return new Response(JSON.stringify({ content: [{ type: 'text', text }], stop_reason: 'end_turn', usage: { input_tokens: 1, output_tokens: 1 } }), { status: 200 });
+    return new Response(JSON.stringify({ choices: [{ message: { role: 'assistant', content: text }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1 } }), { status: 200 });
   }
   throw new Error(`unexpected request ${url}`);
 };
@@ -140,7 +143,7 @@ test('an admin edit is a new version the client does not see until it is shared'
   assert.equal(S.forClient(again.script).version, 2);
 });
 
-test('implement revisions: easy requests go in with a reply, editorial ones are held', async () => {
+test('implement revisions: everything is drafted or held, and nothing reaches the client until an admin approves', async () => {
   await S.addComment(project, client, { para: 3, quote: '99 euros', text: 'Pricing is now 119 euros a month.' });
   await S.addComment(project, client, { para: null, text: 'Please remove the part about sync delays.' });
   const { count } = await S.clientSubmit(project, client);
@@ -162,18 +165,29 @@ test('implement revisions: easy requests go in with a reply, editorial ones are 
   assert.match(sent, /\[P4\] Pricing starts at 99 euros a month\./);
   assert.match(sent, /"highlighted_text": "99 euros"/);
   assert.deepEqual([r.implemented, r.held, r.changed], [1, 1, true]);
+  assert.equal(r.script.versions.length, 3);
+  assert.equal(r.script.comments[0].status, 'drafted');
+  assert.equal(r.script.comments[1].status, 'needs-decision');
 
-  const seen = S.forClient(r.script);
-  assert.equal(seen.version, 3, 'the client sees the revised version straight away');
+  // The client still sees the old version, with no reply and no hint of our notes.
+  let seen = S.forClient(r.script);
+  assert.equal(seen.version, 2);
+  assert.doesNotMatch(seen.text, /119 euros/);
+  assert.deepEqual(seen.comments.map((c) => [c.status, c.reply]), [['open', null], ['open', null]]);
+  const leaked = JSON.stringify(seen);
+  assert.equal(/119 euros a month\.|reviewers raise it|Updated the price/.test(leaked.replace('Pricing is now 119 euros a month.', '')), false);
+  await assert.rejects(S.clientApprove(project, client), /comments we have not answered/);
+
+  // The admin rewords the drafted reply, then approves: script and reply go out together.
+  await S.editDraftReply(project, c1.id, 'Done: the price now reads 119 euros a month.');
+  const shared = await S.share(project, admin);
+  assert.equal(shared.released, 1);
+  seen = S.forClient(shared.script);
+  assert.equal(seen.version, 3);
   assert.match(seen.text, /119 euros/);
-  assert.equal(seen.comments[0].status, 'implemented');
-  assert.equal(seen.comments[0].reply, 'Updated to 119 euros a month.');
-  assert.equal(seen.comments[1].status, 'open', 'a held request still reads as waiting to the client');
-  assert.equal(seen.comments[1].reply, null);
-  assert.equal(JSON.stringify(seen).includes('reviewers raise it'), false, 'our recommendation never reaches the client');
-  const held = r.script.comments[1];
-  assert.equal(held.status, 'needs-decision');
-  assert.equal(held.proposedReply, 'We kept this because it reflects verified reviews.');
+  assert.deepEqual([seen.comments[0].status, seen.comments[0].reply], ['implemented', 'Done: the price now reads 119 euros a month.']);
+  assert.deepEqual([seen.comments[1].status, seen.comments[1].reply], ['open', null], 'the held request still reads as waiting');
+  await assert.rejects(S.editDraftReply(project, c1.id, 'too late'), /already been sent/);
 
   const s = await S.replyToComment(project, admin, c2.id, 'We kept this because it reflects verified reviews.');
   assert.equal(S.forClient(s).comments[1].status, 'declined');

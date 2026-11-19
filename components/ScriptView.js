@@ -14,6 +14,7 @@ function When({ at }) {
 const STATUS = {
   open: ['Waiting for Hotel Tech Report', 'st-submitted'], implemented: ['Updated in the script', 'st-approved'],
   declined: ['Answered', 'st-todo'], 'needs-decision': ['Needs your decision', 'st-changes'],
+  drafted: ['Drafted, not sent to the client', 'st-changes'],
 };
 
 export default function ScriptView({ projectId, project, role, initial, ai = null, suggestedWebsite = '' }) {
@@ -80,7 +81,7 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
           It reads the client&apos;s dossier, the internal dossier and the demo transcript. Takes about 5 to 10 minutes. Keep this page open.
         </p>
         {!project.ready && <div className="callout" style={{ margin: '10px 0' }}>{project.blocker}</div>}
-        {!ai?.ready && <div className="callout" style={{ margin: '10px 0' }}>The AI writer is not connected yet. Add <b>ANTHROPIC_API_KEY</b> in Vercel (Settings, Environment Variables) and redeploy. Nothing else is needed.</div>}
+        {!ai?.ready && <div className="callout" style={{ margin: '10px 0' }}>The AI writer is not connected yet. Add your OpenAI key as <b>OPENAI_API_KEY</b> in Vercel (Settings, Environment Variables) and redeploy. Nothing else is needed.</div>}
         <label className="small muted" htmlFor="site">Vendor website, read for the platform overview step</label>
         <div className="row" style={{ flexWrap: 'nowrap', marginTop: 4 }}>
           <input id="site" type="text" placeholder="https://www.vendor.com" value={website} onChange={(e) => setWebsite(e.target.value)} />
@@ -97,6 +98,7 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
   const writing = busy === 'writing';
   const open = script.comments.filter((c) => c.status === 'open');
   const held = script.comments.filter((c) => c.status === 'needs-decision');
+  const drafted = script.comments.filter((c) => c.status === 'drafted');
   const sharedV = script.shared?.version || null;
 
   return (
@@ -128,33 +130,37 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
             <div>
               <div className="step-title">
                 {script.client?.approvedAt ? 'Approved by the client. Locked for filming.'
-                  : sharedV ? `The client can see version ${sharedV}` : 'Not shown to the client'}
+                  : drafted.length ? `Revisions are drafted. The client still sees version ${sharedV}.`
+                    : sharedV ? `The client can see version ${sharedV}` : 'Not shown to the client'}
               </div>
               <div className="muted small">
                 {script.client?.approvedAt ? <>Approved <When at={script.client.approvedAt} />{script.client.approvedBy ? ` by ${script.client.approvedBy}` : ''}.</>
+                  : drafted.length ? `Nothing has been sent. Read version ${v.n} and the ${drafted.length === 1 ? 'reply' : `${drafted.length} replies`} below, change anything you like, then approve to send the script and the replies together.`
                   : sharedV ? <>Shared <When at={script.shared.at} />. {sharedV < v.n ? `You have a newer version (${v.n}) they have not seen.` : 'They can comment on any paragraph.'}</>
                     : 'Read it, edit anything you like, then approve it. The client is emailed a link when you do.'}
               </div>
             </div>
             <div className="row">
-              {(!sharedV || sharedV < v.n) && <button className="btn ok" disabled={!!busy} onClick={() => run('share', { type: 'share' }, 'Shared. The client was emailed.')}>{sharedV ? `Show version ${v.n} to the client` : 'Approve and show to client'}</button>}
+              {(!sharedV || sharedV < v.n || drafted.length > 0) && <button className="btn ok" disabled={!!busy} onClick={() => run('share', { type: 'share' }, 'Shared. The client was emailed.')}>{drafted.length ? 'Approve and send revisions to client' : sharedV ? `Show version ${v.n} to the client` : 'Approve and show to client'}</button>}
               {sharedV && !script.client?.approvedAt && <button className="linkbtn" disabled={!!busy} onClick={() => run('unshare', { type: 'unshare' }, 'Hidden from the client')}>Hide from client</button>}
             </div>
           </section>
 
-          {(open.length > 0 || held.length > 0) && (
+          {(open.length > 0 || held.length > 0 || drafted.length > 0) && (
             <section className="card pad">
               <div className="row" style={{ justifyContent: 'space-between' }}>
                 <div>
                   <div className="step-title">Client feedback</div>
                   <div className="muted small">
                     {open.length ? `${open.length} new ${open.length === 1 ? 'comment' : 'comments'}${script.client?.submittedAt ? ', sent for review' : ', not sent yet (the client is still commenting)'}.` : 'No new comments.'}
+                    {drafted.length ? ` ${drafted.length} worked into version ${v.n}, waiting for your review.` : ''}
                     {held.length ? ` ${held.length} waiting on your decision.` : ''}
                   </div>
                 </div>
-                {open.length > 0 && <button className="btn primary" disabled={!!busy} onClick={() => run('revise', { type: 'revise' }, (d) => `${d.implemented} implemented, ${d.held} held for you`)}>{busy === 'revise' ? 'Working through comments…' : 'Implement revisions'}</button>}
+                {open.length > 0 && <button className="btn primary" disabled={!!busy} onClick={() => run('revise', { type: 'revise' }, (d) => `Done. ${d.implemented} drafted, ${d.held} held for you. Nothing was sent.`)}>{busy === 'revise' ? 'Working through comments…' : 'Implement revisions'}</button>}
               </div>
-              {open.length > 0 && <p className="hint">Straightforward requests are worked into the script and answered automatically; the client sees the new version right away. Anything that touches the editorial side is held here for you and nothing is sent.</p>}
+              {open.length > 0 && <p className="hint">Straightforward requests are worked into a new draft with a reply written for each. Anything that touches the editorial side is held for your decision. You are emailed when it is done, and nothing goes to the client until you approve it.</p>}
+              {drafted.map((c) => <Drafted key={c.id} c={c} busy={busy} run={run} />)}
               {held.map((c) => <Decision key={c.id} c={c} busy={busy} run={run} />)}
             </section>
           )}
@@ -201,6 +207,24 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
   );
 }
 
+function Drafted({ c, busy, run }) {
+  const [reply, setReply] = useState(c.draftReply || '');
+  return (
+    <div className="decision">
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <b>{c.by?.name || 'Client'}</b>
+        <span className="pill st-approved">Worked into the draft</span>
+      </div>
+      {(c.quote || c.paraText) && <blockquote>{c.quote || c.paraText}</blockquote>}
+      <div className="msg-text">{c.text}</div>
+      {c.change && <div className="decision-rec" style={{ background: 'var(--ok-soft)' }}><b>What changed.</b> {c.change}</div>}
+      <label className="small muted">Reply the client will get when you approve</label>
+      <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={2} />
+      {reply.trim() !== (c.draftReply || '') && <button className="btn" disabled={!!busy || !reply.trim()} onClick={() => run(`draft-${c.id}`, { type: 'draft-reply', id: c.id, text: reply }, 'Reply saved')}>Save reply</button>}
+    </div>
+  );
+}
+
 function Decision({ c, busy, run }) {
   const [reply, setReply] = useState(c.proposedReply || '');
   return (
@@ -216,7 +240,7 @@ function Decision({ c, busy, run }) {
       <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={3} />
       <div className="row">
         <button className="btn" disabled={!!busy || !reply.trim()} onClick={() => run(`reply-${c.id}`, { type: 'reply', id: c.id, text: reply }, 'Reply sent. The script was not changed.')}>Send reply, leave the script</button>
-        <button className="btn" disabled={!!busy} onClick={() => run('revise', { type: 'revise', only: c.id }, 'Implemented and answered')}>{busy === 'revise' ? 'Working…' : 'Implement it anyway'}</button>
+        <button className="btn" disabled={!!busy} onClick={() => run('revise', { type: 'revise', only: c.id }, 'Worked into the draft. Nothing was sent.')}>{busy === 'revise' ? 'Working…' : 'Implement it anyway'}</button>
       </div>
     </div>
   );
@@ -244,6 +268,7 @@ function Thread({ c, admin, onRemove }) {
       </div>
       {c.quote && <blockquote>{c.quote}</blockquote>}
       <div className="msg-text">{c.text}</div>
+      {admin && c.status === 'drafted' && c.draftReply && <div className="msg"><div className="small muted">Draft reply, not sent</div><div className="msg-text">{c.draftReply}</div></div>}
       {c.reply && <div className="msg from-htr"><div className="small"><b>Hotel Tech Report</b>{c.replyAt ? <span className="muted"> · <When at={c.replyAt} /></span> : null}</div><div className="msg-text">{c.reply}</div></div>}
       {onRemove && c.status === 'open' && <button className="linkbtn" onClick={() => onRemove(c.id)}>Remove</button>}
     </div>
