@@ -90,9 +90,12 @@ company; personal addresses (gmail etc.) get their own.
    `HTR_MCP_KEY` (a fixed admin API key, used instead of the sign-in when set).
    **Script writing.** Add `OPENAI_API_KEY` (an OpenAI API key) to turn on **Generate script**.
    Optional: `SCRIPT_MODEL` (defaults to `gpt-6.1-sol`) and `SCRIPT_REASONING` (reasoning effort).
-   `ANTHROPIC_API_KEY` is used instead only when no OpenAI key is set. The prompts come from
-   `prompts/youtube-review-prompts.md`, an export of the "Youtube Product Review Prompts" Google Doc;
-   after replacing that file run `node scripts/build-prompts.mjs`.
+   `ANTHROPIC_API_KEY` is used instead only when no OpenAI key is set.
+   How scripts are written lives in two files: `lib/script-pipeline.js` (the steps and their prompts:
+   plan, seven sections, assemble, spoken edit, independent score, targeted revision) and
+   `lib/script-config.js` (word budgets, scoring weights, ruled-out phrases; `SCRIPT_BUDGETS` overrides
+   budgets). The editorial standards and the client revisions prompt still come from
+   `prompts/youtube-review-prompts.md`; after replacing that file run `node scripts/build-prompts.mjs`.
 4. **Redeploy.** Everyone is signed out once (new session cookie). From then on admins use email
    codes and `ADMIN_PASSWORD` stops working.
 

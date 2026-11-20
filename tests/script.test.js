@@ -21,7 +21,27 @@ const DOC = 'a'.repeat(30);
 const JOB = 'b'.repeat(16);
 const dossierText = `TrustYou vendor application. Website: https://www.trustyou.com/cxp and video https://www.youtube.com/x. Pricing: from 99 EUR per month. ${'Features and answers. '.repeat(20)}`;
 const ai = { calls: [], reply: null };
-const SCRIPT_V1 = ['Title line for the review.', 'Hi, I\'m Ariana from HotelTechReport.com.', '🕒 [01:45] The inbox pulls every review into one place.', 'Pricing starts at 99 euros a month.'].join('\n\n') + '\n\n' + 'Closing thought. '.repeat(20).trim();
+const body = (n) => Array.from({ length: n }, (_, i) => `word${i}`).join(' ');
+const SECTION_TEXT = [
+  ['[HOOK AND INTRO]', `Title line for the review. Hi, I'm Ariana from HotelTechReport.com. ${body(100)}`],
+  ['[PLATFORM OVERVIEW]', body(90)],
+  ['[FEATURE WALKTHROUGH]', `🕒 [01:45] The inbox pulls every review into one place. ${body(100)}\n\n🕒 [03:10] ${body(100)}\n\n🕒 [05:02] ${body(100)}`],
+  ['[CASE STUDY]', body(150)],
+  ['[REAL-WORLD FEEDBACK]', `Across 623 verified reviews the pattern is clear. ${body(190)}`],
+  ['[FIT AND PRICING]', `Pricing starts at 99 euros a month. ${body(120)}`],
+  ['[VERDICT AND CTA]', `${body(60)} Read verified reviews on HotelTechReport.`],
+];
+const SCRIPT_V1 = SECTION_TEXT.map(([h, t]) => `${h}\n\n${t}`).join('\n\n');
+const DRAFT = SCRIPT_V1.replace('🕒 [05:02]', `🕒 [05:02] ${body(260)} extra`);
+// What the fake AI writer answers at each step, recognised by how the prompt begins.
+const answerFor = (prompt, n) => {
+  if (prompt.startsWith('Assemble the seven sections')) return `Title card: TrustYou reviewed\n===SCRIPT START===\n${DRAFT}\n===SCRIPT END===`;
+  if (prompt.startsWith('Edit the assembled script')) return `===SCRIPT START===\n${DRAFT}\n===SCRIPT END===\n1. Tightened.`;
+  if (prompt.startsWith('You are an independent editorial evaluator')) return 'SCORES\nHook and intro: 8/10, fine\nTOTAL: 82/100\n\nISSUES\n1. [must-fix] Feature walkthrough: too long.\n\nKEEP\n"The inbox pulls every review into one place."';
+  if (prompt.startsWith('You are the senior editor')) return `===SCRIPT START===\n${SCRIPT_V1}\n===SCRIPT END===\n\n===EDITOR NOTES START===\n🕒 [01:45] Unified inbox | Show: inbox list | Highlight: source filter | Why: one place\nTitle card: TrustYou reviewed\n===EDITOR NOTES END===\n\nCHANGES\n1. Cut the third workflow to budget.`;
+  if (prompt.startsWith('Write the PLATFORM OVERVIEW')) return 'Overview narration.\nDIAGRAM PROMPT (not spoken): hub and spokes.';
+  return `answer ${n}`;
+};
 globalThis.fetch = async (url, init = {}) => {
   url = String(url);
   if (url === `https://docs.google.com/document/d/${DOC}/export?format=txt`) return new Response(dossierText, { headers: { 'content-type': 'text/plain; charset=utf-8' } });
@@ -34,9 +54,7 @@ globalThis.fetch = async (url, init = {}) => {
     assert.ok(body.messages.every((m) => typeof m.content === 'string'));
     ai.calls.push(body);
     const prompt = body.messages.at(-1).content;
-    const text = ai.reply ? ai.reply(prompt) : /Entertainment edit|Final Assembly/.test(prompt.slice(0, 80))
-      ? `Title card: X\n===SCRIPT START===\n${SCRIPT_V1}\n===SCRIPT END===\nGrade: A`
-      : `answer ${ai.calls.length}`;
+    const text = ai.reply ? ai.reply(prompt) : answerFor(prompt, ai.calls.length);
     return new Response(JSON.stringify({ choices: [{ message: { role: 'assistant', content: text }, finish_reason: 'stop' }], usage: { prompt_tokens: 1, completion_tokens: 1 } }), { status: 200 });
   }
   throw new Error(`unexpected request ${url}`);
@@ -56,57 +74,117 @@ const admin = { role: 'admin', email: 'jordan@hoteltechreport.com', name: 'jorda
 const client = { role: 'client', email: 'ana@trustyou.com', name: 'Ana Client' };
 const textOf = (m) => (typeof m.content === 'string' ? m.content : m.content[0].text);
 
-test('the prompt document is carried word for word', () => {
-  assert.equal(PROMPTS.steps.length, 9);
-  assert.match(PROMPTS.pre, /^# \*\*Hotel Tech Report YouTube Script: Editorial & Writing Standards\*\*/);
-  assert.match(PROMPTS.steps[0].prompt, /Hi, I’m Ariana from HotelTechReport\.com, where we help hoteliers like you future-proof/);
-  assert.match(PROMPTS.steps[8].prompt, /Then add a short section called “Entertainment edits made”/);
+test('the standards come from the prompt document, with the one rule that caused bloat replaced', async () => {
+  const { STANDARDS, STEPS } = await import('../lib/script-pipeline.js');
+  assert.match(STANDARDS, /^# \*\*Hotel Tech Report YouTube Script: Editorial & Writing Standards\*\*/);
+  assert.match(STANDARDS, /Never invent statistics, customer results, product capabilities, integrations, prices, quotes/);
+  assert.doesNotMatch(STANDARDS, /Do not sacrifice useful information simply to make the script shorter/);
+  assert.match(STANDARDS, /Prioritize\. A script that explains a few things well/);
   assert.match(PROMPTS.revisions, /\*\*A\. IMPLEMENT — Straightforward improvements\*\*/);
+  assert.deepEqual(STEPS.map((x) => x.key), ['plan', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 'assemble', 'edit', 'evaluate', 'revise']);
 });
 
 test('refuses to start before the internal dossier is complete', async () => {
   await assert.rejects(S.startScript({ ...project, internal: { fields: {} } }), /internal dossier complete/);
 });
 
-test('writes the script one step at a time in a single growing conversation', async () => {
+test('plans first, writes each section to a budget, then scores independently and revises', async () => {
   const s0 = await S.startScript(project, { who: admin });
   assert.equal(s0.website, 'https://www.trustyou.com', 'website guessed from the dossier, skipping video links');
   assert.equal(s0.reviewCount, '623');
-  assert.equal(s0.steps.length, 10);
+  assert.equal(s0.steps.length, 12);
   let s = s0;
-  for (let i = 0; i < 10; i++) s = await S.runNextStep(project);
+  for (let i = 0; i < 12; i++) s = await S.runNextStep(project);
   assert.equal(s.status, 'done');
-  assert.equal(ai.calls.length, 10, 'one request per step, never one shot');
+  assert.equal(ai.calls.length, 12, 'one request per step, never one shot');
+  const last = (i) => ai.calls[i].messages.at(-1).content;
 
-  const first = textOf(ai.calls[0].messages[0]);
-  assert.ok(first.startsWith(`${PROMPTS.opening}\n\n${PROMPTS.pre}`), 'opens with the pre-prompt');
+  // Step 1 is the plan, sent with the standards and research in one opening message.
+  const first = ai.calls[0].messages[0].content;
+  assert.equal(ai.calls[0].messages.length, 1);
+  assert.match(first, /^Analyze the dossier input as a hotel tech analyst[\s\S]*Editorial & Writing Standards/);
   assert.match(first, /Vendor dossier[\s\S]*TrustYou vendor application/);
   assert.match(first, /HTR internal dossier[\s\S]*623 verified reviews from 293 hotels/);
   assert.match(first, /Demo video transcript[\s\S]*This is the unified inbox\./);
-  assert.match(first, /Use exactly this number everywhere/);
-  assert.equal(ai.calls[0].messages.length, 1);
+  assert.match(first, /EDITORIAL PLAN\. Do not write any script yet\./);
+  assert.match(first, /Write three candidates[\s\S]*a customer story may open the script only if it is the same customer told in the case study/);
+  assert.match(first, /Select 3 to 5 workflows/);
+  assert.match(first, /- Feature walkthrough: 300 to 350 spoken words/);
+  assert.equal(ai.calls[0].reasoning_effort, 'high', 'planning gets more thinking time');
 
-  // Each later request repeats the whole conversation so far, then adds the next prompt.
-  ai.calls.forEach((c, i) => {
-    assert.equal(c.messages.length, i === 0 ? 1 : 2 * i + 1);
-    assert.equal(textOf(c.messages[0]), first);
-    if (i > 1 && i < 9) assert.equal(c.messages[2 * i - 1].content, `answer ${i}`, `step ${i}'s answer is carried forward`);
-  });
-  const p1 = textOf(ai.calls[1].messages.at(-1));
-  assert.match(p1, /^Step 1: Intro Script \(Hook \+ Setup\)/);
-  assert.match(p1, /everything you need to know about TrustYou Customer Experience Platform \(CXP\) to help/);
-  assert.match(p1, /surveying 623\+ users/);
-  const p2 = textOf(ai.calls[2].messages.at(-1));
-  assert.match(p2, /Visit and analyze the SaaS company website: https:\/\/www\.trustyou\.com/);
-  assert.match(p2, /Reviews, surveys and AI replies in one inbox\./, 'website text handed over');
-  assert.doesNotMatch(p2, /x\{\}/, 'styles stripped');
-  assert.match(textOf(ai.calls[4].messages.at(-1)), /Use the case studies in the HTR internal dossier/);
-  assert.match(textOf(ai.calls[8].messages.at(-1)), /^Step 8:/);
-  assert.match(textOf(ai.calls[9].messages.at(-1)), /^Step 9 \(Experimental\): Entertainment edit/);
+  // Sections 2 to 8 continue that one conversation, each carrying everything before it.
+  for (let i = 1; i <= 9; i++) {
+    assert.equal(ai.calls[i].messages.length, 2 * i + 1);
+    assert.equal(ai.calls[i].messages[0].content, first);
+    assert.equal(ai.calls[i].messages[1].content, 'answer 1', 'the plan is in front of every section');
+    assert.equal(ai.calls[i].reasoning_effort, undefined);
+  }
+  assert.match(last(1), /^Write the HOOK AND INTRO[\s\S]*Hi, I’m Ariana from HotelTechReport\.com, where we help hoteliers like you future-proof/);
+  assert.match(last(1), /what 623 verified reviews and industry experts say/);
+  assert.match(last(1), /Length: 100 to 140 spoken words/);
+  assert.doesNotMatch(last(1), /deep dive/);
+  assert.match(last(2), /Reviews, surveys and AI replies in one inbox\./, 'website text handed over');
+  assert.doesNotMatch(last(2), /x\{\}/, 'styles stripped');
+  assert.match(last(3), /^Write the FEATURE WALKTHROUGH[\s\S]*Cover the workflows selected in the plan and nothing else[\s\S]*Length: 300 to 350 spoken words/);
+  assert.match(last(7), /Give a decisive verdict[\s\S]*Do not end on a rhetorical question/);
+  assert.match(last(8), /^Assemble the seven sections[\s\S]*\[HOOK AND INTRO\]  \[PLATFORM OVERVIEW\]/);
+  assert.match(last(9), /^Edit the assembled script[\s\S]*would a knowledgeable hotel industry professional naturally say this out loud/);
+
+  // The evaluator gets a conversation of its own: the script, the research and the app's word counts, not the drafting.
+  const ev = ai.calls[10];
+  assert.equal(ev.messages.length, 1);
+  assert.equal(ev.reasoning_effort, 'high');
+  assert.match(ev.messages[0].content, /You did not write this script\. Score it\. Do not rewrite it\./);
+  assert.match(ev.messages[0].content, /- Feature walkthrough: 25/);
+  assert.match(ev.messages[0].content, /- Feature walkthrough: 5\d\d words \[budget 300 to 350\] OVER BUDGET, 3 timestamped passages/);
+  assert.doesNotMatch(ev.messages[0].content, /answer 4/, 'no drafting leaks into the evaluation');
+  assert.match(ev.messages[0].content, /TrustYou vendor application/);
+
+  // The reviser sees the evaluation and the plan, and returns the script plus editor directions.
+  const rv = ai.calls[11].messages[0].content;
+  assert.equal(ai.calls[11].messages.length, 1);
+  assert.match(rv, /Leave the passages under KEEP[\s\S]*# INDEPENDENT EVALUATION\s+SCORES[\s\S]*TOTAL: 82\/100/);
+  assert.match(rv, /# EDITORIAL PLAN THE SCRIPT WAS WRITTEN TO\s+answer 1/);
+  assert.match(rv, /Title card: TrustYou reviewed[\s\S]*DIAGRAM PROMPT \(not spoken\): hub and spokes\./);
 
   assert.equal(s.versions.length, 1);
-  assert.equal(s.versions[0].text, SCRIPT_V1, 'only the script itself is kept, without grades or title card');
-  assert.equal(S.forAdmin(s).materials, undefined);
+  const v = s.versions[0];
+  assert.equal(v.text, SCRIPT_V1, 'only the script itself is kept');
+  assert.match(v.editorNotes, /Unified inbox \| Show: inbox list/);
+  assert.equal(v.draftScore, 82);
+  const view = S.forAdmin(s);
+  assert.equal(view.materials, undefined);
+  assert.deepEqual(view.analysis.sections.map((x) => x.label), ['Hook and intro', 'Platform overview', 'Feature walkthrough', 'Case study', 'Real-world feedback', 'Fit and pricing', 'Verdict and CTA']);
+  const walk = view.analysis.sections[2];
+  assert.equal(walk.words, 308, 'timestamps are not counted as spoken words');
+  assert.equal(walk.over, false);
+  assert.equal(v.draft.sections[2].over, true, 'the draft was over budget before the fixes');
+  assert.deepEqual(view.checks, []);
+  assert.equal(JSON.stringify(S.forClient({ ...s, shared: { version: 1, at: 'x' } })).includes('Unified inbox | Show'), false, 'editor directions never reach the client');
+});
+
+test('the app checks length, ruled-out phrases, review counts and the ending itself', () => {
+  const bad = `[HOOK AND INTRO]\n\nIn this video we take a deep dive \u2014 ${body(60)}\n\n[FEATURE WALKTHROUGH]\n\n${Array.from({ length: 7 }, (_, i) => `🕒 [0${i}:00] ${body(100)}`).join('\n\n')}\n\n[REAL-WORLD FEEDBACK]\n\nWe read 1,000+ reviews. ${body(50)}\n\n[VERDICT AND CTA]\n\nSo is it right for you?`;
+  const found = S.checks(bad, { reviewCount: '623' }).join(' | ');
+  assert.match(found, /Missing section: Platform overview, Case study, Fit and pricing/);
+  assert.match(found, /Feature walkthrough runs 700 words against a budget of 300 to 350/);
+  assert.match(found, /The walkthrough has 7 timestamped passages; the target is 3 to 5/);
+  assert.match(found, /"deep dive"/);
+  assert.match(found, /em dash/);
+  assert.match(found, /Review count should read 623 everywhere; the script also says 1,000/);
+  assert.match(found, /ends on a question/);
+  assert.equal(S.analyze(bad).runtime, '5:55');
+});
+
+test('starting over keeps the old run in the archive', async () => {
+  const p9 = { ...project, id: 'p9p9p9p9' };
+  await S.startScript(p9, { who: admin });
+  await S.runNextStep(p9);
+  await S.removeScript(p9.id);
+  assert.equal(await S.getScript(p9.id), null);
+  const kept = [...blobs.keys()].filter((k) => k.startsWith('scripts-archive/p9p9p9p9/'));
+  assert.equal(kept.length, 1);
+  assert.equal(JSON.parse(blobs.get(kept[0])).steps[0].output, 'answer 13');
 });
 
 test('a failed step is kept as stopped and can be continued', async () => {
@@ -144,7 +222,7 @@ test('an admin edit is a new version the client does not see until it is shared'
 });
 
 test('implement revisions: everything is drafted or held, and nothing reaches the client until an admin approves', async () => {
-  await S.addComment(project, client, { para: 3, quote: '99 euros', text: 'Pricing is now 119 euros a month.' });
+  await S.addComment(project, client, { para: 13, quote: '99 euros', text: 'Pricing is now 119 euros a month.' });
   await S.addComment(project, client, { para: null, text: 'Please remove the part about sync delays.' });
   const { count } = await S.clientSubmit(project, client);
   assert.equal(count, 2);
@@ -162,7 +240,7 @@ test('implement revisions: everything is drafted or held, and nothing reaches th
   };
   const r = await S.implementRevisions(project);
   assert.ok(sent.startsWith(PROMPTS.revisions), 'the client revisions prompt leads');
-  assert.match(sent, /\[P4\] Pricing starts at 99 euros a month\./);
+  assert.match(sent, /\[P14\] Pricing starts at 99 euros a month\./);
   assert.match(sent, /"highlighted_text": "99 euros"/);
   assert.deepEqual([r.implemented, r.held, r.changed], [1, 1, true]);
   assert.equal(r.script.versions.length, 3);
@@ -203,7 +281,7 @@ test('implement revisions: everything is drafted or held, and nothing reaches th
 test('an unreadable AI answer changes nothing', async () => {
   const p3 = { ...project, id: 'p3p3p3p3' };
   await S.startScript(p3, { who: admin });
-  for (let i = 0; i < 10; i++) await S.runNextStep(p3);
+  for (let i = 0; i < 12; i++) await S.runNextStep(p3);
   await S.share(p3, admin);
   await S.addComment(p3, client, { para: 0, text: 'Change the title.' });
   ai.reply = () => 'Sure, done!';
