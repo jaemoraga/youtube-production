@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, download, useToast } from './ui.js';
 
+const HEADING = /^\[[A-Z][A-Z &/\-]{2,40}\]$/;
 const paragraphsOf = (text) => String(text || '').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
 // Dates are only formatted in the browser, so the server and the browser never disagree on time zone.
 function When({ at }) {
@@ -70,14 +71,15 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
   const done = steps.filter((s) => s.status === 'done').length;
   const v = script?.versions?.[script.versions.length - 1] || null;
   const run = async (key, body, ok) => { setBusy(key); const d = await post(body, ok); setBusy(''); return d; };
+  const regenerate = async () => { if (window.confirm('Regenerate the script from scratch with the current writing process? The current script and its steps are archived, not deleted. Takes 5 to 10 minutes; keep this page open.') && await run('regenerate', { type: 'regenerate' })) writeAll(); };
 
   if (!script) {
     return (
       <section className="card pad">
         <div className="step-title">Generate the script</div>
         <p className="muted small" style={{ marginTop: 0 }}>
-          Runs your review prompts in order, one section at a time: the pre-prompt, intro, platform overview, feature walkthrough,
-          case study, real-world feedback, fit and pricing, the close, final assembly, then the entertainment edit.
+          Plans the video first (hook, case study, the three to five workflows worth showing), writes the seven sections one at a time
+          to a word budget, assembles and edits them for spoken delivery, has the draft scored independently, then makes targeted fixes.
           It reads the client&apos;s dossier, the internal dossier and the demo transcript. Takes about 5 to 10 minutes. Keep this page open.
         </p>
         {!project.ready && <div className="callout" style={{ margin: '10px 0' }}>{project.blocker}</div>}
@@ -118,7 +120,8 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
               </li>;
             })}
           </ol>
-          {!writing && <div className="row"><button className="btn primary" onClick={writeAll}>Continue writing</button>
+          {script.previous && <p className="hint">Regenerating. The previous script ran {script.previous.words.toLocaleString('en-US')} spoken words{script.previous.draftScore ? ` and its draft scored ${script.previous.draftScore}/100` : ''}; it is archived.</p>}
+          {!writing && <div className="row">{script.currentProcess ? <button className="btn primary" onClick={writeAll}>Continue writing</button> : <button className="btn primary" disabled={!!busy || !ai?.ready} onClick={regenerate}>Regenerate script</button>}
             <button className="linkbtn" onClick={() => window.confirm('Throw away what has been written and start over?') && run('reset', { type: 'reset' })}>Start over</button></div>}
           {writing && <p className="hint">Keep this page open. If you close it, come back and click Continue writing; finished steps are kept.</p>}
         </section>
@@ -143,6 +146,7 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
             <div className="row">
               {(!sharedV || sharedV < v.n || drafted.length > 0) && <button className="btn ok" disabled={!!busy} onClick={() => run('share', { type: 'share' }, 'Shared. The client was emailed.')}>{drafted.length ? 'Approve and send revisions to client' : sharedV ? `Show version ${v.n} to the client` : 'Approve and show to client'}</button>}
               {sharedV && !script.client?.approvedAt && <button className="linkbtn" disabled={!!busy} onClick={() => run('unshare', { type: 'unshare' }, 'Hidden from the client')}>Hide from client</button>}
+              {!sharedV && !script.client?.approvedAt && <button className="btn" disabled={!!busy || !ai?.ready} title="Write the whole script again with the current process. The current one is archived." onClick={regenerate}>{busy === 'regenerate' ? 'Starting…' : 'Regenerate script'}</button>}
             </div>
           </section>
 
@@ -164,6 +168,8 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
               {held.map((c) => <Decision key={c.id} c={c} busy={busy} run={run} />)}
             </section>
           )}
+
+          <Quality script={script} v={v} />
 
           <section className="card pad">
             <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -187,6 +193,13 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
             ) : <Paragraphs text={v.text} comments={script.comments} version={v.n} admin />}
           </section>
 
+          {v.editorNotes && (
+            <details className="card pad script-how">
+              <summary>Editor directions <span className="muted">· for your video editor, never shown to the client</span></summary>
+              <pre className="script-notes">{v.editorNotes}</pre>
+            </details>
+          )}
+
           <Earlier comments={script.comments} version={v.n} admin />
 
           <details className="card pad script-how">
@@ -196,7 +209,7 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
               <details key={s.key} className="script-step">
                 <summary>{s.title}</summary>
                 <pre>{s.output}</pre>
-                {!sharedV && s.key !== 'ingest' && <button className="linkbtn" disabled={!!busy} onClick={async () => { if (window.confirm(`Write "${s.title}" and every step after it again? The current script is replaced.`) && await run('redo', { type: 'redo', key: s.key })) writeAll(); }}>Write this step and everything after it again</button>}
+                {!sharedV && script.currentProcess && <button className="linkbtn" disabled={!!busy} onClick={async () => { if (window.confirm(`Write "${s.title}" and every step after it again? The current script is replaced.`) && await run('redo', { type: 'redo', key: s.key })) writeAll(); }}>Write this step and everything after it again</button>}
               </details>
             ))}
             {!sharedV && <button className="linkbtn" disabled={!!busy} onClick={() => window.confirm('Delete this script and start over?') && run('reset', { type: 'reset' })}>Start over</button>}
@@ -222,6 +235,38 @@ function Drafted({ c, busy, run }) {
       <textarea value={reply} onChange={(e) => setReply(e.target.value)} rows={2} />
       {reply.trim() !== (c.draftReply || '') && <button className="btn" disabled={!!busy || !reply.trim()} onClick={() => run(`draft-${c.id}`, { type: 'draft-reply', id: c.id, text: reply }, 'Reply saved')}>Save reply</button>}
     </div>
+  );
+}
+
+// Length against budget, the independent score of the draft, and the app's own checks.
+function Quality({ script, v }) {
+  const a = script.analysis;
+  if (!a?.sections?.length) return null;
+  const before = v.draft?.sections || [];
+  return (
+    <section className="card pad">
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <div className="step-title">Length and quality</div>
+        <span className="muted small">{a.words.toLocaleString('en-US')} spoken words · about {a.runtime} at 140 words a minute · budget allows up to {a.target}</span>
+      </div>
+      <table className="script-budget">
+        <thead><tr><th>Section</th><th>Words</th><th>Budget</th>{before.length > 0 && v.source === 'generated' && <th>Before fixes</th>}</tr></thead>
+        <tbody>
+          {a.sections.map((x, i) => (
+            <tr key={i} className={x.over ? 'over' : ''}>
+              <td>{x.label}</td><td>{x.words}</td><td>{x.max ? `${x.min} to ${x.max}` : ''}</td>
+              {before.length > 0 && v.source === 'generated' && <td className="muted">{before.find((b) => b.id === x.id)?.words ?? ''}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {v.draftScore && <p className="small" style={{ margin: '10px 0 0' }}><b>Independent score of the draft: {v.draftScore}/100.</b> <span className="muted">Scored in a separate conversation before the final fixes, so the finished script should be better than this number. The full scorecard is under How it was written.</span></p>}
+      {script.checks.length > 0
+        ? <ul className="script-checks">{script.checks.map((c, i) => <li key={i}>{c}</li>)}</ul>
+        : <p className="small muted" style={{ margin: '8px 0 0' }}>Checks passed: every section is within budget, no ruled-out phrases, one review count throughout, ends on a verdict or call to action.</p>}
+      {!script.currentProcess && <p className="hint">Written with the earlier process. Click Regenerate script at the top to rewrite it with the current one; the old run is kept in the archive.</p>}
+      {script.previous && v.source === 'generated' && <p className="small muted" style={{ margin: '8px 0 0' }}>Previous run: {script.previous.words.toLocaleString('en-US')} spoken words{script.previous.draftScore ? `, draft scored ${script.previous.draftScore}/100` : ''}{script.previous.pipeline !== script.pipeline ? ', earlier writing process' : ''}. Archived.</p>}
+    </section>
   );
 }
 
@@ -251,7 +296,13 @@ async function docx(project, v) {
   const children = [
     new Paragraph({ heading: HeadingLevel.HEADING_1, children: [new TextRun(`${project.product} review script`)] }),
     new Paragraph({ children: [new TextRun({ text: `Hotel Tech Report · version ${v.n}`, color: '6B6F76', size: 18 })] }),
-    ...paragraphsOf(v.text).map((p) => new Paragraph({ spacing: { before: 200 }, children: p.split('\n').flatMap((line, i) => [...(i ? [new TextRun({ break: 1 })] : []), new TextRun(line)]) })),
+    ...paragraphsOf(v.text).map((p) => (HEADING.test(p)
+      ? new Paragraph({ heading: HeadingLevel.HEADING_2, spacing: { before: 360 }, children: [new TextRun(p.replace(/[\[\]]/g, ''))] })
+      : new Paragraph({ spacing: { before: 200 }, children: p.split('\n').flatMap((line, i) => [...(i ? [new TextRun({ break: 1 })] : []), new TextRun(line)]) }))),
+    ...(v.editorNotes ? [
+      new Paragraph({ pageBreakBefore: true, heading: HeadingLevel.HEADING_1, children: [new TextRun('Editor directions (not spoken)')] }),
+      ...v.editorNotes.split('\n').filter((l) => l.trim()).map((l) => new Paragraph({ spacing: { before: 160 }, children: [new TextRun({ text: l, size: 20 })] })),
+    ] : []),
   ];
   const doc = new Document({ styles: { default: { document: { run: { font: 'Calibri', size: 24 } } } }, sections: [{ children }] });
   download(`${project.fileStem} script v${v.n}.docx`, await Packer.toBlob(doc));
@@ -288,9 +339,9 @@ function Paragraphs({ text, comments, version, admin, onComment, onRemove, locke
       {paragraphsOf(text).map((p, i) => {
         const mine = comments.filter((c) => c.version === version && c.para === i);
         return (
-          <div key={i} className={`script-para${mine.length ? ' has' : ''}`}>
-            <p>{p}</p>
-            {onComment && !locked && at !== i && <button className="linkbtn script-add" onClick={() => startComment(i)}>Comment</button>}
+          <div key={i} className={`script-para${mine.length ? ' has' : ''}${HEADING.test(p) ? ' head' : ''}`}>
+            <p>{HEADING.test(p) ? p.replace(/[\[\]]/g, '') : p}</p>
+            {onComment && !locked && at !== i && !HEADING.test(p) && <button className="linkbtn script-add" onClick={() => startComment(i)}>Comment</button>}
             {at === i && (
               <div className="script-new">
                 {quote && <blockquote>{quote}</blockquote>}

@@ -305,3 +305,11 @@ textarea.autogrow { field-sizing: content; min-height: 64px; max-height: 420px; 
 .script-step pre { white-space: pre-wrap; font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--bg); padding: 12px; border-radius: 8px; max-height: 420px; overflow: auto; }
 .decision { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
 .decision-rec { margin: 10px 0; padding: 10px 12px; border-radius: 9px; background: var(--warn-soft); font-size: 14px; }
+
+.script-para.head p { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 18px; }
+.script-budget { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+.script-budget th { text-align: left; font-weight: 500; color: var(--muted); font-size: 12.5px; padding: 4px 8px 4px 0; border-bottom: 1px solid var(--border); }
+.script-budget td { padding: 5px 8px 5px 0; border-bottom: 1px solid var(--border); }
+.script-budget tr.over td { color: var(--warn); font-weight: 500; }
+.script-checks { margin: 10px 0 0; padding: 10px 12px 10px 30px; border-radius: 9px; background: var(--warn-soft); font-size: 14px; }
+.script-notes { white-space: pre-wrap; font: 13.5px/1.6 inherit; margin: 10px 0 0; }
