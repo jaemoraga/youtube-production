@@ -187,6 +187,24 @@ test('starting over keeps the old run in the archive', async () => {
   assert.equal(JSON.parse(blobs.get(kept[0])).steps[0].output, 'answer 13');
 });
 
+test('regenerate archives the run, keeps the website, and refuses while the client can see it', async () => {
+  const p7 = { ...project, id: 'p7p7p7p7' };
+  await S.startScript(p7, { website: 'https://www.trustyou.com/reviews', who: admin });
+  for (let i = 0; i < 12; i++) await S.runNextStep(p7);
+  await S.share(p7, admin);
+  await assert.rejects(S.regenerateScript(p7, { who: admin }), /Hide from client first/);
+  await S.unshare(p7);
+  const fresh = await S.regenerateScript(p7, { who: admin });
+  assert.equal(fresh.website, 'https://www.trustyou.com/reviews', 'same website as last time');
+  assert.equal(fresh.versions.length, 0);
+  assert.equal(fresh.steps.every((x) => x.status === 'pending'), true);
+  assert.equal(fresh.previous.draftScore, 82);
+  assert.ok(fresh.previous.words > 1000);
+  assert.equal([...blobs.keys()].filter((k) => k.startsWith('scripts-archive/p7p7p7p7/')).length, 1, 'old run archived');
+  for (let i = 0; i < 12; i++) await S.runNextStep(p7);
+  assert.equal((await S.getScript(p7.id)).versions.length, 1);
+});
+
 test('a failed step is kept as stopped and can be continued', async () => {
   blobs.delete('scripts/p2p2p2p2.json');
   const p2 = { ...project, id: 'p2p2p2p2' };

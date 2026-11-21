@@ -71,6 +71,7 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
   const done = steps.filter((s) => s.status === 'done').length;
   const v = script?.versions?.[script.versions.length - 1] || null;
   const run = async (key, body, ok) => { setBusy(key); const d = await post(body, ok); setBusy(''); return d; };
+  const regenerate = async () => { if (window.confirm('Regenerate the script from scratch with the current writing process? The current script and its steps are archived, not deleted. Takes 5 to 10 minutes; keep this page open.') && await run('regenerate', { type: 'regenerate' })) writeAll(); };
 
   if (!script) {
     return (
@@ -119,7 +120,8 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
               </li>;
             })}
           </ol>
-          {!writing && <div className="row"><button className="btn primary" onClick={writeAll}>Continue writing</button>
+          {script.previous && <p className="hint">Regenerating. The previous script ran {script.previous.words.toLocaleString('en-US')} spoken words{script.previous.draftScore ? ` and its draft scored ${script.previous.draftScore}/100` : ''}; it is archived.</p>}
+          {!writing && <div className="row">{script.currentProcess ? <button className="btn primary" onClick={writeAll}>Continue writing</button> : <button className="btn primary" disabled={!!busy || !ai?.ready} onClick={regenerate}>Regenerate script</button>}
             <button className="linkbtn" onClick={() => window.confirm('Throw away what has been written and start over?') && run('reset', { type: 'reset' })}>Start over</button></div>}
           {writing && <p className="hint">Keep this page open. If you close it, come back and click Continue writing; finished steps are kept.</p>}
         </section>
@@ -144,6 +146,7 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
             <div className="row">
               {(!sharedV || sharedV < v.n || drafted.length > 0) && <button className="btn ok" disabled={!!busy} onClick={() => run('share', { type: 'share' }, 'Shared. The client was emailed.')}>{drafted.length ? 'Approve and send revisions to client' : sharedV ? `Show version ${v.n} to the client` : 'Approve and show to client'}</button>}
               {sharedV && !script.client?.approvedAt && <button className="linkbtn" disabled={!!busy} onClick={() => run('unshare', { type: 'unshare' }, 'Hidden from the client')}>Hide from client</button>}
+              {!sharedV && !script.client?.approvedAt && <button className="btn" disabled={!!busy || !ai?.ready} title="Write the whole script again with the current process. The current one is archived." onClick={regenerate}>{busy === 'regenerate' ? 'Starting…' : 'Regenerate script'}</button>}
             </div>
           </section>
 
@@ -261,7 +264,8 @@ function Quality({ script, v }) {
       {script.checks.length > 0
         ? <ul className="script-checks">{script.checks.map((c, i) => <li key={i}>{c}</li>)}</ul>
         : <p className="small muted" style={{ margin: '8px 0 0' }}>Checks passed: every section is within budget, no ruled-out phrases, one review count throughout, ends on a verdict or call to action.</p>}
-      {!script.currentProcess && <p className="hint">Written with the earlier process. Start over (under How it was written) to rewrite it with the current one; the old run is kept in the archive.</p>}
+      {!script.currentProcess && <p className="hint">Written with the earlier process. Click Regenerate script at the top to rewrite it with the current one; the old run is kept in the archive.</p>}
+      {script.previous && v.source === 'generated' && <p className="small muted" style={{ margin: '8px 0 0' }}>Previous run: {script.previous.words.toLocaleString('en-US')} spoken words{script.previous.draftScore ? `, draft scored ${script.previous.draftScore}/100` : ''}{script.previous.pipeline !== script.pipeline ? ', earlier writing process' : ''}. Archived.</p>}
     </section>
   );
 }

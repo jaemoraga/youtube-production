@@ -51,6 +51,7 @@ export async function POST(request, { params }) {
           break;
         }
         case 'redo': script = await S.redoFrom(p, a.key); break;
+        case 'regenerate': script = await S.regenerateScript(p, { who }); break;
         case 'reset': await S.removeScript(p.id); script = null; break;
         case 'edit': script = await S.saveEdit(p, a.text, who); break;
         case 'share': {
