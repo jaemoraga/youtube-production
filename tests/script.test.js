@@ -23,13 +23,13 @@ const dossierText = `TrustYou vendor application. Website: https://www.trustyou.
 const ai = { calls: [], reply: null };
 const body = (n) => Array.from({ length: n }, (_, i) => `word${i}`).join(' ');
 const SECTION_TEXT = [
-  ['[HOOK AND INTRO]', `Title line for the review. Hi, I'm Ariana from HotelTechReport.com. ${body(100)}`],
+  ['[HOOK AND INTRO]', `Title line for the review. Hi, I’m Ariana from HotelTechReport.com, where we help hoteliers like you future-proof your operations by finding the best tech tools to run and grow your businesses. ${body(80)}`],
   ['[PLATFORM OVERVIEW]', body(90)],
   ['[FEATURE WALKTHROUGH]', `🕒 [01:45] The inbox pulls every review into one place. ${body(100)}\n\n🕒 [03:10] ${body(100)}\n\n🕒 [05:02] ${body(100)}`],
   ['[CASE STUDY]', body(150)],
   ['[REAL-WORLD FEEDBACK]', `Across 623 verified reviews the pattern is clear. ${body(190)}`],
   ['[FIT AND PRICING]', `Pricing starts at 99 euros a month. ${body(120)}`],
-  ['[VERDICT AND CTA]', `${body(60)} Read verified reviews on HotelTechReport.`],
+  ['[VERDICT AND CTA]', `${body(60)} On HotelTechReport, read verified reviews, check integrations, compare alternatives and request pricing.`],
 ];
 const SCRIPT_V1 = SECTION_TEXT.map(([h, t]) => `${h}\n\n${t}`).join('\n\n');
 const DRAFT = SCRIPT_V1.replace('🕒 [05:02]', `🕒 [05:02] ${body(260)} extra`);
@@ -126,7 +126,7 @@ test('plans first, writes each section to a budget, then scores independently an
   assert.match(last(2), /Reviews, surveys and AI replies in one inbox\./, 'website text handed over');
   assert.doesNotMatch(last(2), /x\{\}/, 'styles stripped');
   assert.match(last(3), /^Write the FEATURE WALKTHROUGH[\s\S]*Cover the workflows selected in the plan and nothing else[\s\S]*Length: 300 to 350 spoken words/);
-  assert.match(last(7), /Give a decisive verdict[\s\S]*Do not end on a rhetorical question/);
+  assert.match(last(7), /two-sided verdict[\s\S]*who may be better served by a narrower or different solution[\s\S]*Name all four[\s\S]*Do not end on a rhetorical question/);
   assert.match(last(8), /^Assemble the seven sections[\s\S]*\[HOOK AND INTRO\]  \[PLATFORM OVERVIEW\]/);
   assert.match(last(9), /^Edit the assembled script[\s\S]*would a knowledgeable hotel industry professional naturally say this out loud/);
 
@@ -174,6 +174,35 @@ test('the app checks length, ruled-out phrases, review counts and the ending its
   assert.match(found, /Review count should read 623 everywhere; the script also says 1,000/);
   assert.match(found, /ends on a question/);
   assert.equal(S.analyze(bad).runtime, '5:55');
+});
+
+test('V3: the app restores the Ariana line and flags vendor CTAs, missing MUST KEEP evidence and a one-sided close', () => {
+  const plan = 'MUST KEEP:\n- ROI rating 4.4/5\n- Onboarding 4.5/5\n- 94% would recommend\n- Narrower tools may suit review-reply-only buyers\n\n2. BUYER AND ANGLE\nGroups.';
+  assert.deepEqual(S.mustKeep(plan), ['ROI rating 4.4/5', 'Onboarding 4.5/5', '94% would recommend', 'Narrower tools may suit review-reply-only buyers']);
+  const v2 = "[HOOK AND INTRO]\n\nHi, I’m Ariana from HotelTechReport.com.\n\n[FIT AND PRICING]\n\nAsk TrustYou for a price quote.\n\n[VERDICT AND CTA]\n\nOn HotelTechReport, read verified reviews, check integrations and compare alternatives. 94% recommend it.";
+  const found = S.checks(v2, { product: 'TrustYou CXP', steps: [{ key: 'plan', output: plan }] }).join(' | ');
+  assert.match(found, /Ariana introduction is missing or reworded/);
+  assert.match(found, /Sends viewers to the vendor for pricing[\s\S]*Ask TrustYou for a price quote/);
+  assert.match(found, /closing call to action leaves out: pricing/);
+  assert.match(found, /MUST KEEP is missing: "ROI rating 4\.4\/5"; "Onboarding 4\.5\/5"\./);
+  assert.doesNotMatch(found, /94%/);
+  assert.match(found, /Verdict and CTA is under budget/);
+  assert.match(S.repairProtected(v2), /Hi, I’m Ariana from HotelTechReport\.com, where we help hoteliers like you future-proof your operations by finding the best tech tools to run and grow your businesses\.\n/);
+});
+
+test('V3: the evaluator is given the MUST KEEP list and the protected lines', async () => {
+  const { STEPS, STANDARDS } = await import('../lib/script-pipeline.js');
+  const ev = STEPS.find((x) => x.key === 'evaluate').prompt({ product: 'P', materials: 'M' }, { script: 'S', counts: 'C', mustKeep: '- ROI 4.4/5' });
+  assert.match(ev, /MUST KEEP items from the editorial plan:\n- ROI 4\.4\/5/);
+  assert.match(ev, /future-proof your operations/);
+  assert.match(ev, /who may be better served elsewhere/);
+  const plan = STEPS[0].prompt({ product: 'P', materials: 'M' });
+  assert.match(plan, /P1 HotelTechReport verified review findings[\s\S]*MUST KEEP:/);
+  assert.match(plan, /A statistic alone is not a hook/);
+  assert.match(STANDARDS, /remove in this order: repetition/);
+  const edit = STEPS.find((x) => x.key === 'edit').prompt({});
+  assert.match(edit, /three to five short moments of interpretation[\s\S]*Never claim hands-on testing/);
+  assert.doesNotMatch(edit, /no section may get longer/);
 });
 
 test('starting over keeps the old run in the archive', async () => {

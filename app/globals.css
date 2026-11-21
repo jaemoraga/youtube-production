@@ -313,3 +313,4 @@ textarea.autogrow { field-sizing: content; min-height: 64px; max-height: 420px; 
 .script-budget tr.over td { color: var(--warn); font-weight: 500; }
 .script-checks { margin: 10px 0 0; padding: 10px 12px 10px 30px; border-radius: 9px; background: var(--warn-soft); font-size: 14px; }
 .script-notes { white-space: pre-wrap; font: 13.5px/1.6 inherit; margin: 10px 0 0; }
+.script-budget tr.under td { color: var(--muted); font-style: italic; }
