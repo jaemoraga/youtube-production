@@ -176,6 +176,16 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
 
       {v && (
         <>
+          {script.analysis && (
+            <section className="card pad script-wordcount">
+              <div className="script-wordcount-n">{script.analysis.words.toLocaleString('en-US')}</div>
+              <div>
+                <div className="step-title" style={{ margin: 0 }}>spoken words · version {v.n}</div>
+                <div className="muted small">About {script.analysis.runtime} on camera at 140 words a minute. Section headings and demo timestamps are not counted.</div>
+              </div>
+            </section>
+          )}
+
           <section className={`card pad script-share ${sharedV ? 'on' : ''}`}>
             <div>
               <div className="step-title">
@@ -187,7 +197,7 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
                 {script.client?.approvedAt ? <>Approved <When at={script.client.approvedAt} />{script.client.approvedBy ? ` by ${script.client.approvedBy}` : ''}.</>
                   : drafted.length ? `Nothing has been sent. Read version ${v.n} and the ${drafted.length === 1 ? 'reply' : `${drafted.length} replies`} below, change anything you like, then approve to send the script and the replies together.`
                   : sharedV ? <>Shared <When at={script.shared.at} />. {sharedV < v.n ? `You have a newer version (${v.n}) they have not seen.` : 'They can comment on any paragraph.'}</>
-                    : 'Read it, edit anything you like, then approve it. The client is emailed a link when you do.'}
+                    : 'Read it, edit anything you like, then approve it. The client is emailed a link when you do. They see the script without the demo timestamps.'}
               </div>
             </div>
             <div className="row">
@@ -220,7 +230,7 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
 
           <section className="card pad">
             <div className="row" style={{ justifyContent: 'space-between' }}>
-              <div className="step-title">Script <span className="muted" style={{ fontWeight: 400 }}>· version {v.n} · {v.source === 'generated' ? 'as written' : v.source === 'revision' ? 'after client revisions' : 'edited by you'} · {v.text.split(/\s+/).length.toLocaleString('en-US')} words</span></div>
+              <div className="step-title">Script <span className="muted" style={{ fontWeight: 400 }}>· version {v.n} · {v.source === 'generated' ? 'as written' : v.source === 'revision' ? 'after client revisions' : 'edited by you'} · {(script.analysis?.words ?? v.text.split(/\s+/).length).toLocaleString('en-US')} spoken words</span></div>
               <div className="row">
                 {editing === null && !script.client?.approvedAt && <button className="btn" onClick={() => setEditing(v.text)}>Edit</button>}
                 <button className="btn" onClick={async () => { await navigator.clipboard.writeText(v.text); say('Copied'); }}>Copy</button>
