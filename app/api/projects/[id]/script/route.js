@@ -42,7 +42,7 @@ export async function POST(request, { params }) {
     let script; let extra = {};
     if (s.r === 'admin') {
       switch (a.type) {
-        case 'start': script = await S.startScript(p, { website: a.website, who }); break;
+        case 'start': script = await S.startScript(p, { website: a.website, product: a.product, who }); break;
         case 'step': {
           script = await S.runNextStep(p);
           if (script.status === 'done' && a.announce !== false && script.steps.at(-1).at && Date.now() - Date.parse(script.steps.at(-1).at) < 15000) {
@@ -51,7 +51,7 @@ export async function POST(request, { params }) {
           break;
         }
         case 'redo': script = await S.redoFrom(p, a.key); break;
-        case 'regenerate': script = await S.regenerateScript(p, { who }); break;
+        case 'regenerate': script = await S.regenerateScript(p, { product: a.product, who }); break;
         case 'reset': await S.removeScript(p.id); script = null; break;
         case 'edit': script = await S.saveEdit(p, a.text, who); break;
         case 'share': {

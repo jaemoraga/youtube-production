@@ -66,12 +66,18 @@ export default function ScriptView({ projectId, project, role, initial, ai = nul
 // ---------------------------------------------------------------- admin
 function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, suggestedWebsite, projectId }) {
   const [website, setWebsite] = useState(suggestedWebsite);
+  const [productName, setProductName] = useState(project.product || '');
   const [editing, setEditing] = useState(null);
   const steps = script?.steps || [];
   const done = steps.filter((s) => s.status === 'done').length;
   const v = script?.versions?.[script.versions.length - 1] || null;
   const run = async (key, body, ok) => { setBusy(key); const d = await post(body, ok); setBusy(''); return d; };
-  const regenerate = async () => { if (window.confirm('Regenerate the script from scratch with the current writing process? The current script and its steps are archived, not deleted. Takes 5 to 10 minutes; keep this page open.') && await run('regenerate', { type: 'regenerate' })) writeAll(); };
+  // Asks for the product name each time: a vendor with several products must be scripted by product.
+  const regenerate = async () => {
+    const product = window.prompt('Regenerate with the current writing process. Product name to review (the product, not the company):', script?.product || project.product || '');
+    if (product === null || !product.trim()) return;
+    if (await run('regenerate', { type: 'regenerate', product: product.trim() })) writeAll();
+  };
 
   if (!script) {
     return (
@@ -84,11 +90,13 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
         </p>
         {!project.ready && <div className="callout" style={{ margin: '10px 0' }}>{project.blocker}</div>}
         {!ai?.ready && <div className="callout" style={{ margin: '10px 0' }}>The AI writer is not connected yet. Add your OpenAI key as <b>OPENAI_API_KEY</b> in Vercel (Settings, Environment Variables) and redeploy. Nothing else is needed.</div>}
+        <label className="small muted" htmlFor="product">Product name (the product, not the company: for example Jonas Chorum, not Jonas Hospitality)</label>
+        <input id="product" type="text" style={{ margin: '4px 0 10px' }} value={productName} onChange={(e) => setProductName(e.target.value)} />
         <label className="small muted" htmlFor="site">Vendor website, read for the platform overview step</label>
         <div className="row" style={{ flexWrap: 'nowrap', marginTop: 4 }}>
           <input id="site" type="text" placeholder="https://www.vendor.com" value={website} onChange={(e) => setWebsite(e.target.value)} />
           <button className="btn primary" disabled={!!busy || !ai?.ready || !project.ready}
-            onClick={async () => { if (await run('start', { type: 'start', website })) writeAll(); }}>
+            onClick={async () => { if (await run('start', { type: 'start', website, product: productName })) writeAll(); }}>
             {busy ? 'Starting…' : 'Generate script'}
           </button>
         </div>
