@@ -201,7 +201,7 @@ test('V3: the evaluator is given the MUST KEEP list and the protected lines', as
   assert.match(plan, /a statistic alone is not a hook/i);
   assert.match(STANDARDS, /remove in this order: repetition/);
   const edit = STEPS.find((x) => x.key === 'edit').prompt({});
-  assert.match(edit, /Three to five moments of expert interpretation[\s\S]*never claim hands-on testing/);
+  assert.match(edit, /Three to five moments of expert interpretation[\s\S]*Never imply Ariana tested a capability herself/);
   assert.doesNotMatch(edit, /no section may get longer/);
 });
 
@@ -210,7 +210,7 @@ test('V4: one shared priority order, timestamps as references, no third-person n
   const s = { product: 'TrustYou Customer Experience Platform (CXP)', materials: 'M', reviewCount: '623' };
   const ctx = { script: 'S', counts: 'C', mustKeep: '- x', checks: '- Third-person narration of the demo', plan: 'P', evaluation: 'E', extras: 'X' };
   const p = Object.fromEntries(STEPS.map((x) => [x.key, x.prompt(s, ctx)]));
-  for (const k of ['plan', 'evaluate', 'revise']) assert.match(p[k], /PRIORITY ORDER[\s\S]*1\. Factual accuracy[\s\S]*7\. Secondary feature coverage/, k);
+  for (const k of ['plan', 'evaluate', 'revise']) assert.match(p[k], /PRIORITY ORDER[\s\S]*1\. Factual accuracy[\s\S]*2\. Editorial independence[\s\S]*8\. Secondary feature coverage/, k);
   for (const k of ['plan', 'edit', 'revise']) assert.match(p[k], /Never "the presenter opens"/, k);
   assert.match(p.plan, /Demo timestamps are source references for the editor, never the structure/);
   assert.match(p.s3, /Do not create a separate spoken passage because timestamps differ/);
@@ -233,6 +233,37 @@ test('V4: the app catches the V3 regressions and restores a dropped closing CTA'
   assert.doesNotMatch(found, /The demo shows survey/, 'factual notes about the demo are allowed');
   assert.match(found, /2 walkthrough passages are under 45 words/);
   assert.match(S.repairProtected(text), /Shortlist it for groups\.\n\nOn HotelTechReport, you can read verified reviews, check integrations, compare alternatives and request pricing\.$/);
+});
+
+test('V5: attribution names the actor, not the document; ratings and essential capabilities are planned', async () => {
+  const { STEPS, STANDARDS } = await import('../lib/script-pipeline.js');
+  const s = { product: 'P', materials: 'M', reviewCount: '623' };
+  const ctx = { script: 'S', counts: 'C', mustKeep: '- Support 4.51/5', essentials: '- Survey Manager | covered in: Fit and pricing', checks: '', plan: 'P', evaluation: 'E', extras: 'X' };
+  const p = Object.fromEntries(STEPS.map((x) => [x.key, x.prompt(s, ctx)]));
+  for (const k of ['plan', 'edit', 'revise']) assert.match(p[k], /Never describe the source document[\s\S]*Write: "YHA Australia used years of guest feedback/, k);
+  for (const k of ['plan', 'edit', 'revise', 'evaluate']) assert.doesNotMatch(p[k], /labeled as claims|Mark vendor claims as claims|attribution caveat/, k);
+  assert.match(p.plan, /the two to four HotelTechReport ratings most relevant to this product's buying risks/);
+  assert.match(p.plan, /ESSENTIAL: <capability name as the product calls it> \| covered in:/);
+  assert.match(p.plan, /never pick a story just because its number is biggest/);
+  assert.match(p.plan, /Score each from 1 to 5 on the hook criteria/);
+  assert.match(p.s7, /may still suit an independent hotel/);
+  assert.match(p.evaluate, /ESSENTIAL capabilities from the editorial plan:\n- Survey Manager/);
+  assert.match(p.evaluate, /Source-document narration/);
+  assert.match(p.revise, /"Sources:" with one line per section/, 'traceability kept in the editor notes');
+  assert.match(STANDARDS, /Keep the few ratings that matter most to the buying decision: not every rating, and not none/);
+});
+
+test('V5: the app flags source-document narration and uncovered essential capabilities', () => {
+  const plan = 'MUST KEEP:\n- Support 4.51/5\n\n5. WALKTHROUGH\nESSENTIAL: Survey Manager | covered in: Fit and pricing | point: surveys start at Essential\nLeft out: CDP';
+  assert.deepEqual(S.essentials(plan).map((x) => x.name), ['Survey Manager']);
+  const v4 = "[CASE STUDY]\n\nThe published story reports that the group's TrustYou Score increased from 84 to 86. HTR reviewers report restrictions with some OTAs.\n\n[VERDICT AND CTA]\n\nOn HotelTechReport, you can read verified reviews, check integrations, compare alternatives and request pricing.";
+  const found = S.checks(v4, { steps: [{ key: 'plan', output: plan }] }).join(' | ');
+  assert.match(found, /Narrates the source document instead of the hotel: "The published story reports", "HTR reviewers report"/);
+  assert.match(found, /Essential capabilities from the plan are not covered: Survey Manager/);
+  assert.match(found, /MUST KEEP is missing: "Support 4\.51\/5"/);
+  const fixed = "[CASE STUDY]\n\nYHA's TrustYou Score rose from 84 to 86. Hotels rate support 4.51 out of 5. Guest surveys in the survey manager start at the Essential tier.\n\n[VERDICT AND CTA]\n\nOn HotelTechReport, you can read verified reviews, check integrations, compare alternatives and request pricing.";
+  const ok = S.checks(fixed, { steps: [{ key: 'plan', output: plan }] }).join(' | ');
+  assert.doesNotMatch(ok, /Narrates the source|Essential capabilities|MUST KEEP/);
 });
 
 test('starting over keeps the old run in the archive', async () => {
