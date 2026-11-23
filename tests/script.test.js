@@ -79,7 +79,7 @@ test('the standards come from the prompt document, with the one rule that caused
   assert.match(STANDARDS, /^# \*\*Hotel Tech Report YouTube Script: Editorial & Writing Standards\*\*/);
   assert.match(STANDARDS, /Never invent statistics, customer results, product capabilities, integrations, prices, quotes/);
   assert.doesNotMatch(STANDARDS, /Do not sacrifice useful information simply to make the script shorter/);
-  assert.match(STANDARDS, /Prioritize\. A script that explains a few things well/);
+  assert.match(STANDARDS, /Prioritize proprietary HotelTechReport research[\s\S]*A script that explains a few things well/);
   assert.match(PROMPTS.revisions, /\*\*A\. IMPLEMENT — Straightforward improvements\*\*/);
   assert.deepEqual(STEPS.map((x) => x.key), ['plan', 's1', 's2', 's3', 's4', 's5', 's6', 's7', 'assemble', 'edit', 'evaluate', 'revise']);
 });
@@ -108,7 +108,7 @@ test('plans first, writes each section to a budget, then scores independently an
   assert.match(first, /Demo video transcript[\s\S]*This is the unified inbox\./);
   assert.match(first, /EDITORIAL PLAN\. Do not write any script yet\./);
   assert.match(first, /Write three candidates[\s\S]*a customer story may open the script only if it is the same customer told in the case study/);
-  assert.match(first, /Select 3 to 5 workflows/);
+  assert.match(first, /Organize it into 3 to 5 cohesive, buyer-relevant operational workflows/);
   assert.match(first, /- Feature walkthrough: 300 to 350 spoken words/);
   assert.equal(ai.calls[0].reasoning_effort, 'high', 'planning gets more thinking time');
 
@@ -125,16 +125,16 @@ test('plans first, writes each section to a budget, then scores independently an
   assert.doesNotMatch(last(1), /deep dive/);
   assert.match(last(2), /Reviews, surveys and AI replies in one inbox\./, 'website text handed over');
   assert.doesNotMatch(last(2), /x\{\}/, 'styles stripped');
-  assert.match(last(3), /^Write the FEATURE WALKTHROUGH[\s\S]*Cover the workflows selected in the plan and nothing else[\s\S]*Length: 300 to 350 spoken words/);
-  assert.match(last(7), /two-sided verdict[\s\S]*who may be better served by a narrower or different solution[\s\S]*Name all four[\s\S]*Do not end on a rhetorical question/);
+  assert.match(last(3), /^Write the FEATURE WALKTHROUGH[\s\S]*timestamps are editing references, not the narrative structure[\s\S]*Write exactly the workflows selected in the plan[\s\S]*Length: 300 to 350 spoken words/);
+  assert.match(last(7), /which buyers should shortlist the product[\s\S]*which buyers may prefer another or narrower solution[\s\S]*what to verify before purchasing[\s\S]*protected closing call to action[\s\S]*no rhetorical question/);
   assert.match(last(8), /^Assemble the seven sections[\s\S]*\[HOOK AND INTRO\]  \[PLATFORM OVERVIEW\]/);
-  assert.match(last(9), /^Edit the assembled script[\s\S]*would a knowledgeable hotel industry professional naturally say this out loud/);
+  assert.match(last(9), /^Edit the assembled script[\s\S]*Everything between the headings is spoken by Ariana[\s\S]*Spoken: /);
 
   // The evaluator gets a conversation of its own: the script, the research and the app's word counts, not the drafting.
   const ev = ai.calls[10];
   assert.equal(ev.messages.length, 1);
   assert.equal(ev.reasoning_effort, 'high');
-  assert.match(ev.messages[0].content, /You did not write this script\. Score it\. Do not rewrite it\./);
+  assert.match(ev.messages[0].content, /You did not write this script\. Score it and report findings\. Do not rewrite it\./);
   assert.match(ev.messages[0].content, /- Feature walkthrough: 25/);
   assert.match(ev.messages[0].content, /- Feature walkthrough: 5\d\d words \[budget 300 to 350\] OVER BUDGET, 3 timestamped passages/);
   assert.doesNotMatch(ev.messages[0].content, /answer 4/, 'no drafting leaks into the evaluation');
@@ -195,14 +195,44 @@ test('V3: the evaluator is given the MUST KEEP list and the protected lines', as
   const ev = STEPS.find((x) => x.key === 'evaluate').prompt({ product: 'P', materials: 'M' }, { script: 'S', counts: 'C', mustKeep: '- ROI 4.4/5' });
   assert.match(ev, /MUST KEEP items from the editorial plan:\n- ROI 4\.4\/5/);
   assert.match(ev, /future-proof your operations/);
-  assert.match(ev, /who may be better served elsewhere/);
+  assert.match(ev, /who may prefer another solution/);
   const plan = STEPS[0].prompt({ product: 'P', materials: 'M' });
-  assert.match(plan, /P1 HotelTechReport verified review findings[\s\S]*MUST KEEP:/);
-  assert.match(plan, /A statistic alone is not a hook/);
+  assert.match(plan, /P1 proprietary HotelTechReport research[\s\S]*MUST KEEP:/);
+  assert.match(plan, /a statistic alone is not a hook/i);
   assert.match(STANDARDS, /remove in this order: repetition/);
   const edit = STEPS.find((x) => x.key === 'edit').prompt({});
-  assert.match(edit, /three to five short moments of interpretation[\s\S]*Never claim hands-on testing/);
+  assert.match(edit, /Three to five moments of expert interpretation[\s\S]*never claim hands-on testing/);
   assert.doesNotMatch(edit, /no section may get longer/);
+});
+
+test('V4: one shared priority order, timestamps as references, no third-person narration', async () => {
+  const { STEPS } = await import('../lib/script-pipeline.js');
+  const s = { product: 'TrustYou Customer Experience Platform (CXP)', materials: 'M', reviewCount: '623' };
+  const ctx = { script: 'S', counts: 'C', mustKeep: '- x', checks: '- Third-person narration of the demo', plan: 'P', evaluation: 'E', extras: 'X' };
+  const p = Object.fromEntries(STEPS.map((x) => [x.key, x.prompt(s, ctx)]));
+  for (const k of ['plan', 'evaluate', 'revise']) assert.match(p[k], /PRIORITY ORDER[\s\S]*1\. Factual accuracy[\s\S]*7\. Secondary feature coverage/, k);
+  for (const k of ['plan', 'edit', 'revise']) assert.match(p[k], /Never "the presenter opens"/, k);
+  assert.match(p.plan, /Demo timestamps are source references for the editor, never the structure/);
+  assert.match(p.s3, /Do not create a separate spoken passage because timestamps differ/);
+  assert.doesNotMatch(p.s3, /around what the viewer sees at that timestamp/, 'the line that fragmented V3 is gone');
+  assert.match(p.evaluate, /never ask for more timestamps or for modules to be separated/);
+  assert.match(p.evaluate, /The app has already run these checks[\s\S]*- Third-person narration of the demo/);
+  assert.match(p.revise, /Fix only the sections those findings name; copy every other section word for word/);
+  assert.match(p.revise, /Source timestamps:/, 'supporting timestamps go to the editor notes');
+  assert.match(p.s1, /the hotelier's problem first/);
+  assert.match(p.plan, /"X reports that\.\.\." and "Its case study shows\.\.\." are not openings/);
+  assert.match(p.s6, /request a price quote for TrustYou Customer Experience Platform on HotelTechReport/, 'no parenthetical in spoken names');
+  assert.match(p.s7, /On HotelTechReport, you can read verified reviews, check integrations, compare alternatives and request pricing\./);
+});
+
+test('V4: the app catches the V3 regressions and restores a dropped closing CTA', () => {
+  const walk = '[FEATURE WALKTHROUGH]\n\nInto the product.\n\n🕒 [12:28] The presenter opens the negative reviews behind that topic. ' + body(60) + '\n\n🕒 [30:17] For broader analysis, the presenter switches to Ask TrustYou.\n\n🕒 [35:35] Report Builder starts a report from a prompt.\n\n🕒 [20:27] The demo shows survey configuration rather than that connection running. ' + body(60);
+  const text = `[HOOK AND INTRO]\n\nx\n\n${walk}\n\n[VERDICT AND CTA]\n\nShortlist it for groups.`;
+  const found = S.checks(text, {}).join(' | ');
+  assert.match(found, /Third-person narration of the demo: "The presenter opens[\s\S]*"the presenter switches/);
+  assert.doesNotMatch(found, /The demo shows survey/, 'factual notes about the demo are allowed');
+  assert.match(found, /2 walkthrough passages are under 45 words/);
+  assert.match(S.repairProtected(text), /Shortlist it for groups\.\n\nOn HotelTechReport, you can read verified reviews, check integrations, compare alternatives and request pricing\.$/);
 });
 
 test('starting over keeps the old run in the archive', async () => {
