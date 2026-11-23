@@ -46,7 +46,8 @@ export async function POST(request, { params }) {
         case 'step': {
           script = await S.runNextStep(p);
           if (script.status === 'done' && a.announce !== false && script.steps.at(-1).at && Date.now() - Date.parse(script.steps.at(-1).at) < 15000) {
-            await adminAlert({ subject: `Script ready to review: ${p.companyName}`, text: `The script for ${p.name} has been written. Nothing has been shown to the client. Read it, edit it if needed, then approve it to share.\n\n${adminUrl}` }).catch(() => {});
+            const a = S.analyze(script.versions.at(-1)?.text || '');
+            await adminAlert({ subject: `Script ready to review: ${p.companyName} (${a.words.toLocaleString('en-US')} words)`, text: `The script for ${p.name} has been written.\n\nWord count: ${a.words.toLocaleString('en-US')} spoken words (about ${a.runtime} at 140 words a minute). Headings and demo timestamps are not counted.\n\nNothing has been shown to the client. Read it, edit it if needed, then approve it to share.\n\n${adminUrl}` }).catch(() => {});
           }
           break;
         }

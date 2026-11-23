@@ -308,6 +308,25 @@ test('V6: the product name given at start or regenerate is used, with the scope 
   assert.equal(s2.product, 'TrustYou Customer Experience Platform', 'keeps the last product name when none is given');
 });
 
+test('clients see the script without demo timestamps, and comments still land on the right paragraph', async () => {
+  const pt = { ...project, id: 'ptptptpt' };
+  await S.startScript(pt, { who: admin });
+  for (let i = 0; i < 12; i++) await S.runNextStep(pt);
+  await S.share(pt, admin);
+  const seen = S.forClient(await S.getScript(pt.id));
+  assert.doesNotMatch(seen.text, /🕒|\[\d{2}:\d{2}\]/, 'no timestamps for the client');
+  assert.match(seen.text, /^The inbox pulls every review into one place\./m);
+  const admins = S.paragraphsOf((await S.getScript(pt.id)).versions[0].text);
+  const clients = S.paragraphsOf(seen.text);
+  assert.equal(clients.length, admins.length, 'same paragraphs, so comment positions match');
+  const at = clients.findIndex((x) => x.startsWith('The inbox pulls'));
+  const after = await S.addComment(pt, { role: 'client', email: 'c@x.com', name: 'C' }, { para: at, quote: 'every review', text: 'Say all reviews.' });
+  const c = S.forClient(after).comments.at(-1);
+  assert.doesNotMatch(c.paraText, /🕒/);
+  assert.match(after.comments.at(-1).paraText, /🕒 \[01:45\]/, 'the admin copy keeps the timestamp');
+  assert.match(S.forAdmin(await S.getScript(pt.id)).versions[0].text, /🕒 \[01:45\]/);
+});
+
 test('starting over keeps the old run in the archive', async () => {
   const p9 = { ...project, id: 'p9p9p9p9' };
   await S.startScript(p9, { who: admin });
@@ -358,7 +377,8 @@ test('the client sees nothing until an admin approves', async () => {
   const { script, first } = await S.share(project, admin);
   assert.equal(first, true);
   const c = S.forClient(script);
-  assert.equal(c.text, SCRIPT_V1);
+  assert.equal(c.text, S.clientText(SCRIPT_V1), 'the shared version, without demo timestamps');
+  assert.doesNotMatch(c.text, /🕒/);
   assert.deepEqual(Object.keys(c).sort(), ['approvedAt', 'comments', 'product', 'sharedAt', 'submittedAt', 'text', 'version']);
 });
 
