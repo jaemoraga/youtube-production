@@ -28,7 +28,7 @@ const SECTION_TEXT = [
   ['[FEATURE WALKTHROUGH]', `🕒 [01:45] The inbox pulls every review into one place. ${body(100)}\n\n🕒 [03:10] ${body(100)}\n\n🕒 [05:02] ${body(100)}`],
   ['[CASE STUDY]', body(150)],
   ['[REAL-WORLD FEEDBACK]', `Across 623 verified reviews the pattern is clear. ${body(190)}`],
-  ['[FIT AND PRICING]', `Pricing starts at 99 euros a month. ${body(120)}`],
+  ['[FIT AND PRICING]', `Pricing starts at 99 euros a month. ${body(120)} You can request pricing for TrustYou Customer Experience Platform directly on HotelTechReport.`],
   ['[VERDICT AND CTA]', `${body(60)} On HotelTechReport, read verified reviews, check integrations, compare alternatives and request pricing.`],
 ];
 const SCRIPT_V1 = SECTION_TEXT.map(([h, t]) => `${h}\n\n${t}`).join('\n\n');
@@ -221,7 +221,7 @@ test('V4: one shared priority order, timestamps as references, no third-person n
   assert.match(p.revise, /Source timestamps:/, 'supporting timestamps go to the editor notes');
   assert.match(p.s1, /the hotelier's problem first/);
   assert.match(p.plan, /"X reports that\.\.\." and "Its case study shows\.\.\." are not openings/);
-  assert.match(p.s6, /request a price quote for TrustYou Customer Experience Platform on HotelTechReport/, 'no parenthetical in spoken names');
+  assert.match(p.s6, /You can request pricing for TrustYou Customer Experience Platform directly on HotelTechReport\./, 'no parenthetical in spoken names');
   assert.match(p.s7, /On HotelTechReport, you can read verified reviews, check integrations, compare alternatives and request pricing\./);
 });
 
@@ -245,7 +245,7 @@ test('V5: attribution names the actor, not the document; ratings and essential c
   assert.match(p.plan, /the two to four HotelTechReport ratings most relevant to this product's buying risks/);
   assert.match(p.plan, /ESSENTIAL: <capability name as the product calls it> \| covered in:/);
   assert.match(p.plan, /never pick a story just because its number is biggest/);
-  assert.match(p.plan, /Score each from 1 to 5 on the hook criteria/);
+  assert.match(p.plan, /curiosity and stakes counted twice/);
   assert.match(p.s7, /may still suit an independent hotel/);
   assert.match(p.evaluate, /ESSENTIAL capabilities from the editorial plan:\n- Survey Manager/);
   assert.match(p.evaluate, /Source-document narration/);
@@ -308,6 +308,55 @@ test('V6: the product name given at start or regenerate is used, with the scope 
   assert.equal(s2.product, 'TrustYou Customer Experience Platform', 'keeps the last product name when none is given');
 });
 
+test('clients see the script without demo timestamps, and comments still land on the right paragraph', async () => {
+  const pt = { ...project, id: 'ptptptpt' };
+  await S.startScript(pt, { who: admin });
+  for (let i = 0; i < 12; i++) await S.runNextStep(pt);
+  await S.share(pt, admin);
+  const seen = S.forClient(await S.getScript(pt.id));
+  assert.doesNotMatch(seen.text, /🕒|\[\d{2}:\d{2}\]/, 'no timestamps for the client');
+  assert.match(seen.text, /^The inbox pulls every review into one place\./m);
+  const admins = S.paragraphsOf((await S.getScript(pt.id)).versions[0].text);
+  const clients = S.paragraphsOf(seen.text);
+  assert.equal(clients.length, admins.length, 'same paragraphs, so comment positions match');
+  const at = clients.findIndex((x) => x.startsWith('The inbox pulls'));
+  const after = await S.addComment(pt, { role: 'client', email: 'c@x.com', name: 'C' }, { para: at, quote: 'every review', text: 'Say all reviews.' });
+  const c = S.forClient(after).comments.at(-1);
+  assert.doesNotMatch(c.paraText, /🕒/);
+  assert.match(after.comments.at(-1).paraText, /🕒 \[01:45\]/, 'the admin copy keeps the timestamp');
+  assert.match(S.forAdmin(await S.getScript(pt.id)).versions[0].text, /🕒 \[01:45\]/);
+});
+
+test('V7: hook chosen for story, functional distinctions kept, case-study anchor, balance, fixed pricing line', async () => {
+  const { STEPS } = await import('../lib/script-pipeline.js');
+  const s = { product: 'Jonas Chorum', materials: 'M', reviewCount: '52' };
+  const ctx = { script: 'S', counts: 'C', mustKeep: '', essentials: '', checks: '', plan: 'P', evaluation: 'E', extras: 'X' };
+  const p = Object.fromEntries(STEPS.map((x) => [x.key, x.prompt(s, ctx)]));
+  assert.match(p.plan, /The hook is chosen for storytelling value, separately from the buying analysis/);
+  assert.match(p.plan, /"your front desk needs a PMS that's easy to use"\) is not a hook/);
+  assert.match(p.plan, /no more than one candidate scores 5 on curiosity/);
+  assert.doesNotMatch(p.plan, /The angle, hook, walkthrough emphasis and verdict should all serve the DIFFERENTIATOR/);
+  assert.match(p.plan, /"agents can override the incidental-payment prompt"/);
+  assert.match(p.plan, /"ANCHOR: yes" or "ANCHOR: no"/);
+  assert.match(p.plan, /STRENGTHS:[\s\S]*as concretely as the limitations/);
+  assert.match(p.edit, /Research method and evidence-quality labels stay in the plan/);
+  assert.match(p.edit, /if agents can override a prompt, never imply the system enforces it/);
+  assert.match(p.s7, /say why the product is worth considering[\s\S]*before where it may fall short/);
+  assert.match(p.s6, /You can request pricing for Jonas Chorum directly on HotelTechReport\./);
+  assert.match(p.evaluate, /A material functional distinction lost or blurred/);
+  assert.match(p.evaluate, /An unbalanced review/);
+});
+
+test('V7: the app restores the pricing line and flags research-method narration', () => {
+  const bad = "[FIT AND PRICING]\n\nPricing isn't published. For pricing on Jonas Chorum PMS specifically, you can request a price quote for Jonas Hospitality on HotelTechReport. The expert evidence consists of recommendations, not detailed assessments.\n\n[VERDICT AND CTA]\n\nOn HotelTechReport, you can read verified reviews, check integrations, compare alternatives and request pricing.";
+  const found = S.checks(bad, { product: 'Jonas Chorum', vendor: 'Jonas Hospitality' }).join(' | ');
+  assert.match(found, /The pricing line should read, word for word: "You can request pricing for Jonas Chorum directly on HotelTechReport\."/);
+  assert.match(found, /Narrates research method instead of the product/);
+  const fixed = S.repairProtected(bad, 'Jonas Chorum');
+  assert.match(fixed, /Pricing isn't published\. You can request pricing for Jonas Chorum directly on HotelTechReport\./);
+  assert.doesNotMatch(fixed, /price quote for Jonas Hospitality|specifically/);
+});
+
 test('starting over keeps the old run in the archive', async () => {
   const p9 = { ...project, id: 'p9p9p9p9' };
   await S.startScript(p9, { who: admin });
@@ -358,7 +407,8 @@ test('the client sees nothing until an admin approves', async () => {
   const { script, first } = await S.share(project, admin);
   assert.equal(first, true);
   const c = S.forClient(script);
-  assert.equal(c.text, SCRIPT_V1);
+  assert.equal(c.text, S.clientText(SCRIPT_V1), 'the shared version, without demo timestamps');
+  assert.doesNotMatch(c.text, /🕒/);
   assert.deepEqual(Object.keys(c).sort(), ['approvedAt', 'comments', 'product', 'sharedAt', 'submittedAt', 'text', 'version']);
 });
 
