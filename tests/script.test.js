@@ -266,6 +266,48 @@ test('V5: the app flags source-document narration and uncovered essential capabi
   assert.doesNotMatch(ok, /Narrates the source|Essential capabilities|MUST KEEP/);
 });
 
+test('V6: differentiation, evidence-led case study length, hook attribution, scope and pricing', async () => {
+  const { STEPS } = await import('../lib/script-pipeline.js');
+  const s = { product: 'Jonas Chorum', materials: 'M', reviewCount: '52' };
+  const ctx = { script: 'S', counts: 'C', mustKeep: '', essentials: '', checks: '', plan: 'P', evaluation: 'E', extras: 'X' };
+  const p = Object.fromEntries(STEPS.map((x) => [x.key, x.prompt(s, ctx)]));
+  assert.match(p.plan, /DEFENSIBLE[\s\S]*TABLE STAKES[\s\S]*"DIFFERENTIATOR: none established"/);
+  assert.match(p.plan, /Vendor claims of uniqueness are not evidence on their own/);
+  assert.match(p.plan, /THIN 60 to 90 words, MODERATE 100 to 140, RICH 130 to 180/);
+  assert.match(p.plan, /\[product\][\s\S]*\[company-wide\]/);
+  assert.match(p.plan, /never interrupt a hook with "a result we haven't independently verified"/);
+  assert.match(p.s4, /Length: the words the plan's DEPTH set/);
+  assert.doesNotMatch(p.s4, /Length: 60 to 180/, 'no fixed case-study minimum to pad toward');
+  assert.match(p.s6, /phrased as questions to ask, not as facts about this vendor/);
+  assert.match(p.s6, /Never describe how this vendor's quotes vary/);
+  assert.match(p.s7, /most defensible differentiator from the plan/);
+  assert.match(p.evaluate, /Company-wide or portfolio evidence presented as the product's/);
+  assert.match(p.evaluate, /Pricing assumptions presented as this vendor's policy/);
+  assert.match(p.evaluate, /A case study padded beyond its evidence/);
+});
+
+test('V6: the app flags a company used as the product, a hook disclaimer and repeated case-study figures', () => {
+  const t = "[HOOK AND INTRO]\n\nBest Western River North added about $27,000, a result we haven't independently verified.\n\n[CASE STUDY]\n\nThe hotel reported about $27,000 in added revenue. That $27,000 came from upsells.\n\n[VERDICT AND CTA]\n\nOn HotelTechReport, you can read verified reviews, check integrations, compare alternatives and request pricing.";
+  const found = S.checks(t, { product: 'Jonas Hospitality', vendor: 'Jonas Hospitality' }).join(' | ');
+  assert.match(found, /The product name is the company name \(Jonas Hospitality\)/);
+  assert.match(found, /hook is interrupted by a verification disclaimer/);
+  assert.match(found, /The case study repeats \$27,000/);
+  const ok = "[HOOK AND INTRO]\n\nBest Western River North says it added about $27,000.\n\n[CASE STUDY]\n\nThe hotel reported about $27,000 in added revenue, though it didn't say over what period.\n\n[VERDICT AND CTA]\n\nOn HotelTechReport, you can read verified reviews, check integrations, compare alternatives and request pricing.";
+  assert.doesNotMatch(S.checks(ok, { product: 'Jonas Chorum', vendor: 'Jonas Hospitality' }).join(' | '), /company name|disclaimer|repeats/);
+});
+
+test('V6: the product name given at start or regenerate is used, with the scope rule', async () => {
+  const pc = { ...project, id: 'p6p6p6p6' };
+  const s0 = await S.startScript(pc, { website: 'https://www.trustyou.com', product: 'TrustYou CXP', who: admin });
+  assert.equal(s0.product, 'TrustYou CXP');
+  assert.match(s0.materials, /Product reviewed: TrustYou CXP[\s\S]*Scope: the HotelTechReport review count, ratings[\s\S]*company-wide evidence/);
+  for (let i = 0; i < 12; i++) await S.runNextStep(pc);
+  const s1 = await S.regenerateScript(pc, { product: 'TrustYou Customer Experience Platform', who: admin });
+  assert.equal(s1.product, 'TrustYou Customer Experience Platform');
+  const s2 = await S.regenerateScript(pc, { who: admin });
+  assert.equal(s2.product, 'TrustYou Customer Experience Platform', 'keeps the last product name when none is given');
+});
+
 test('starting over keeps the old run in the archive', async () => {
   const p9 = { ...project, id: 'p9p9p9p9' };
   await S.startScript(p9, { who: admin });
@@ -274,7 +316,7 @@ test('starting over keeps the old run in the archive', async () => {
   assert.equal(await S.getScript(p9.id), null);
   const kept = [...blobs.keys()].filter((k) => k.startsWith('scripts-archive/p9p9p9p9/'));
   assert.equal(kept.length, 1);
-  assert.equal(JSON.parse(blobs.get(kept[0])).steps[0].output, 'answer 13');
+  assert.match(JSON.parse(blobs.get(kept[0])).steps[0].output, /^answer \d+$/, 'the finished step is kept in the archive');
 });
 
 test('regenerate archives the run, keeps the website, and refuses while the client can see it', async () => {

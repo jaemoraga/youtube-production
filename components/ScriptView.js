@@ -37,25 +37,63 @@ export default function ScriptView({ projectId, project, role, initial, ai = nul
   };
 
   // Generation runs one step per request; the page asks for the next one until all are written.
+  // Each step keeps running on the server even if this page loses its connection, so a dropped request
+  // (Wi-Fi or VPN change, laptop sleep, a 504) is not a failure: the page waits, checks where the run
+  // is, and carries on. It stops only when a step itself failed, or after 8 minutes with no progress.
   const looping = useRef(false);
+  const [note, setNote] = useState('');
+  const RECOVER_MS = 8 * 60e3;
+  const sleep = (ms) => new Promise((r) => { setTimeout(r, ms); });
+  const stepOnce = async () => {
+    try {
+      const res = await fetch(url, { method: 'POST', headers: { 'x-htr': '1', 'content-type': 'application/json' }, body: JSON.stringify({ type: 'step' }), cache: 'no-store' });
+      if (res.status === 401) { window.location.reload(); return { stop: true }; }
+      const data = await res.json().catch(() => ({}));
+      return { ok: res.ok, status: res.status, data };
+    } catch { return { network: true }; }
+  };
+  const doneAll = (sc) => !sc || sc.steps.every((x) => x.status === 'done');
   const writeAll = async () => {
     if (looping.current) return;
-    looping.current = true; setBusy('writing'); setProblem('');
-    try {
-      for (;;) {
-        const d = await api(url, { method: 'POST', body: { type: 'step' } });
-        setScript(d.script);
-        if (!d.script || d.script.steps.every((s) => s.status === 'done')) break;
+    looping.current = true; setBusy('writing'); setProblem(''); setNote('');
+    let lastProgress = Date.now();
+    let doneCount = -1;
+    const progressed = (sc) => { const n = sc?.steps?.filter((x) => x.status === 'done').length ?? -1; if (n > doneCount) { doneCount = n; lastProgress = Date.now(); } };
+    for (;;) {
+      const r = await stepOnce();
+      if (r.stop) break;
+      if (r.ok) {
+        progressed(r.data.script); lastProgress = Date.now(); setNote(''); setScript(r.data.script);
+        if (doneAll(r.data.script)) { say('Script written'); break; }
+        continue;
       }
-      say('Script written');
-    } catch (e) { setProblem(e.message); try { setScript((await api(url)).script); } catch { /* keep what we have */ } }
-    looping.current = false; setBusy('');
+      // Something went wrong. Look at the run itself before deciding anything.
+      let current = null;
+      try { current = (await api(url)).script; } catch { /* still offline */ }
+      if (current) setScript(current);
+      if (doneAll(current) && current) { say('Script written'); break; }
+      const failed = current?.steps?.find((x) => x.status === 'error');
+      if (failed && !current.running) { setProblem(`${failed.title} stopped: ${failed.error || r.data?.error || 'the AI writer returned an error'}. Click Continue writing to try that step again.`); break; }
+      progressed(current);
+      if (Date.now() - lastProgress > RECOVER_MS) { setProblem(r.data?.error || 'Lost the connection for more than 8 minutes. Click Continue writing; finished steps are kept.'); break; }
+      setNote(r.network ? 'Connection dropped. The step keeps running on the server; reconnecting and carrying on…'
+        : r.status === 409 ? 'A step is still being written. Waiting for it to finish…'
+          : 'The server was slow to answer. Checking the run and carrying on…');
+      await sleep(10000);
+    }
+    setNote(''); looping.current = false; setBusy('');
   };
+
+  // Opening the page while a run is unfinished picks it up where it stopped (unless a step failed).
+  useEffect(() => {
+    if (admin && initial?.status === 'running' && initial.currentProcess && !initial.steps.some((x) => x.status === 'error') && !doneAll(initial)) writeAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="script-stack">
       {admin
-        ? <AdminScript {...{ script, project, ai, busy, setBusy, post, writeAll, say, suggestedWebsite, projectId }} />
+        ? <AdminScript {...{ script, project, ai, busy, setBusy, post, writeAll, say, suggestedWebsite, projectId, note }} />
         : <ClientScript {...{ script, project, busy, setBusy, post, say }} />}
       {problem && <div className="callout script-problem"><b>That didn&apos;t work.</b> {problem}</div>}
       {toast}
@@ -64,14 +102,20 @@ export default function ScriptView({ projectId, project, role, initial, ai = nul
 }
 
 // ---------------------------------------------------------------- admin
-function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, suggestedWebsite, projectId }) {
+function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, suggestedWebsite, projectId, note }) {
   const [website, setWebsite] = useState(suggestedWebsite);
+  const [productName, setProductName] = useState(project.product || '');
   const [editing, setEditing] = useState(null);
   const steps = script?.steps || [];
   const done = steps.filter((s) => s.status === 'done').length;
   const v = script?.versions?.[script.versions.length - 1] || null;
   const run = async (key, body, ok) => { setBusy(key); const d = await post(body, ok); setBusy(''); return d; };
-  const regenerate = async () => { if (window.confirm('Regenerate the script from scratch with the current writing process? The current script and its steps are archived, not deleted. Takes 5 to 10 minutes; keep this page open.') && await run('regenerate', { type: 'regenerate' })) writeAll(); };
+  // Asks for the product name each time: a vendor with several products must be scripted by product.
+  const regenerate = async () => {
+    const product = window.prompt('Regenerate with the current writing process. Product name to review (the product, not the company):', script?.product || project.product || '');
+    if (product === null || !product.trim()) return;
+    if (await run('regenerate', { type: 'regenerate', product: product.trim() })) writeAll();
+  };
 
   if (!script) {
     return (
@@ -84,11 +128,13 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
         </p>
         {!project.ready && <div className="callout" style={{ margin: '10px 0' }}>{project.blocker}</div>}
         {!ai?.ready && <div className="callout" style={{ margin: '10px 0' }}>The AI writer is not connected yet. Add your OpenAI key as <b>OPENAI_API_KEY</b> in Vercel (Settings, Environment Variables) and redeploy. Nothing else is needed.</div>}
+        <label className="small muted" htmlFor="product">Product name (the product, not the company: for example Jonas Chorum, not Jonas Hospitality)</label>
+        <input id="product" type="text" style={{ margin: '4px 0 10px' }} value={productName} onChange={(e) => setProductName(e.target.value)} />
         <label className="small muted" htmlFor="site">Vendor website, read for the platform overview step</label>
         <div className="row" style={{ flexWrap: 'nowrap', marginTop: 4 }}>
           <input id="site" type="text" placeholder="https://www.vendor.com" value={website} onChange={(e) => setWebsite(e.target.value)} />
           <button className="btn primary" disabled={!!busy || !ai?.ready || !project.ready}
-            onClick={async () => { if (await run('start', { type: 'start', website })) writeAll(); }}>
+            onClick={async () => { if (await run('start', { type: 'start', website, product: productName })) writeAll(); }}>
             {busy ? 'Starting…' : 'Generate script'}
           </button>
         </div>
@@ -123,7 +169,8 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
           {script.previous && <p className="hint">Regenerating. The previous script ran {script.previous.words.toLocaleString('en-US')} spoken words{script.previous.draftScore ? ` and its draft scored ${script.previous.draftScore}/100` : ''}; it is archived.</p>}
           {!writing && <div className="row">{script.currentProcess ? <button className="btn primary" onClick={writeAll}>Continue writing</button> : <button className="btn primary" disabled={!!busy || !ai?.ready} onClick={regenerate}>Regenerate script</button>}
             <button className="linkbtn" onClick={() => window.confirm('Throw away what has been written and start over?') && run('reset', { type: 'reset' })}>Start over</button></div>}
-          {writing && <p className="hint">Keep this page open. If you close it, come back and click Continue writing; finished steps are kept.</p>}
+          {writing && note && <div className="callout" style={{ marginTop: 10 }}>{note}</div>}
+          {writing && <p className="hint">Keep this page open. A dropped connection no longer stops the run: the page reconnects and carries on. If you close the page, reopening it picks up where it left off.</p>}
         </section>
       )}
 
