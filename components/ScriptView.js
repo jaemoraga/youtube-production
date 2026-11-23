@@ -112,8 +112,11 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
   const run = async (key, body, ok) => { setBusy(key); const d = await post(body, ok); setBusy(''); return d; };
   // Asks for the product name each time: a vendor with several products must be scripted by product.
   const regenerate = async () => {
-    const product = window.prompt('Regenerate with the current writing process. Product name to review (the product, not the company):', script?.product || project.product || '');
+    const vendor = (script?.vendor || '').trim().toLowerCase();
+    const last = script?.product || project.product || '';
+    const product = window.prompt('Regenerate with the current writing process. Product name to review: the product, not the company (for example Jonas Chorum, not Jonas Hospitality).', vendor && last.trim().toLowerCase() === vendor ? '' : last);
     if (product === null || !product.trim()) return;
+    if (vendor && product.trim().toLowerCase() === vendor && !window.confirm(`"${product.trim()}" is the company name. If the company sells more than one product, review counts and pricing will be attributed to the company. Continue anyway?`)) return;
     if (await run('regenerate', { type: 'regenerate', product: product.trim() })) writeAll();
   };
 
