@@ -2,9 +2,9 @@
 // The project checklist. role="client": the sponsor completes items. role="admin": HTR reviews them.
 import { uploadPresigned } from '@vercel/blob/client';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { GROUP_HINT, INTERNAL_FIELDS, ITEM_LABEL, ITEMS, STATUS_TEXT, projectStatus, timeline } from '@/lib/project-shared.js';
+import { GROUP_HINT, INTERNAL_FIELDS, ITEM_LABEL, ITEMS, STATUS_TEXT, projectStatus, timeline, videoParts } from '@/lib/project-shared.js';
 import { assetType, mediaType, safeName } from '@/lib/media.js';
-import { api, bytes, useToast, when } from './ui.js';
+import { api, bytes, duration, useToast, when } from './ui.js';
 
 // Admin "client preview": everything renders as the client sees it, but nothing can be changed.
 const Preview = createContext(false);
@@ -17,7 +17,7 @@ export function StatusPill({ status, forClient = false }) {
   return <span className={`pill st-${status}`}>{text}</span>;
 }
 
-export default function ProjectView({ initial, role, templateUrl, job, htr = null, people = [], preview = false, script = null }) {
+export default function ProjectView({ initial, role, templateUrl, jobs = [], htr = null, people = [], preview = false, script = null }) {
   const htrEnabled = !!htr?.connected;
   const [p, setP] = useState(initial);
   const [toast, say] = useToast();
@@ -55,14 +55,15 @@ export default function ProjectView({ initial, role, templateUrl, job, htr = nul
         <span style={{ flex: 'none', marginTop: 8 }}><StatusPill status={status} forClient={!admin} /></span>
       </div>
 
-      {admin && <Overview p={p} job={job} htrEnabled={htrEnabled} />}
+      {admin && <Overview p={p} jobs={jobs} htrEnabled={htrEnabled} />}
       {admin && (
         <div className="admin-grid">
-          <People people={people} />
-          <Timeline p={p} job={job} />
+          <People people={people} p={p} act={act} say={say} />
+          <Timeline p={p} jobs={jobs} />
         </div>
       )}
       {admin && <h2 className="section-title" style={{ marginTop: 32 }}>Client checklist</h2>}
+      {admin && status === 'waiting' && <p className="muted small" style={{ marginTop: -6 }}>The client normally completes these. If they sent materials another way, add them here yourself or mark a step as received outside the app. Nothing you add here emails the client.</p>}
 
       <div className="steps">
         <Item n={1} item="dossier" p={p} admin={admin} act={act}>
@@ -72,7 +73,7 @@ export default function ProjectView({ initial, role, templateUrl, job, htr = nul
           <Assets p={p} admin={admin} act={act} say={say} />
         </Item>
         <Item n={3} item="video" p={p} admin={admin} act={act}>
-          <Video p={p} admin={admin} reload={reload} say={say} job={job} />
+          <Video p={p} admin={admin} act={act} reload={reload} say={say} jobs={jobs} />
         </Item>
       </div>
       {!admin && script && (
@@ -88,13 +89,15 @@ export default function ProjectView({ initial, role, templateUrl, job, htr = nul
         </section>
       )}
       {admin && <InternalDossier p={p} act={act} htr={htr} say={say} />}
-      {admin && status === 'scripting' && (
+      {admin && (
         <section className="card pad script-entry" id="script">
           <div>
             <div className="step-title">Script</div>
-            <div className="muted small">{script?.line || 'Everything is in. Generate the script from the two dossiers and the demo transcript.'}</div>
+            <div className="muted small">{script?.line || (status === 'scripting'
+              ? 'Everything is in. Generate the script from the two dossiers and the demo transcript.'
+              : 'The app writes the script once the checklist and the internal dossier are done. A script that was written somewhere else can be imported at any time.')}</div>
           </div>
-          <a className="btn primary" href={`/admin/projects/${p.id}/script`}>{script ? 'Open script' : 'Generate script'}</a>
+          <a className={`btn${script || status === 'scripting' ? ' primary' : ''}`} href={`/admin/projects/${p.id}/script`}>{script ? 'Open script' : status === 'scripting' ? 'Generate script' : 'Import a script'}</a>
         </section>
       )}
       {admin && (
@@ -141,7 +144,12 @@ function Item({ n, item, p, admin, act, children }) {
         </div>
       )}
 
-      <div className="step-body">{children}</div>
+      <div className="step-body">
+        {admin && it.external && <p className="muted small" style={{ marginTop: 0 }}><b>Received outside the app.</b>{it.externalNote ? ` ${it.externalNote}` : ''}</p>}
+        {!admin && it.external && <p className="muted small" style={{ marginTop: 0 }}>We already have this from you. Nothing to do here.</p>}
+        {children}
+        {admin && it.status !== 'approved' && <Outside item={item} act={act} />}
+      </div>
 
       {admin && it.status !== 'todo' && (
         <div className="review-bar">
@@ -186,10 +194,26 @@ function Dossier({ p, admin, act, templateUrl }) {
   const locked = it.status === 'approved';
 
   if (admin) {
-    return it.url
-      ? <a className="btn" href={it.url} target="_blank" rel="noreferrer">Open dossier ↗</a>
-      : <p className="muted small">Not submitted yet.</p>;
+    if (it.url && (!editing || locked)) {
+      return (
+        <div className="row">
+          <a className="btn" href={it.url} target="_blank" rel="noreferrer">Open dossier ↗</a>
+          {!locked && <button className="linkbtn" onClick={() => setEditing(true)}>Change link</button>}
+        </div>
+      );
+    }
+    if (locked) return null;
+    return (
+      <>
+        <p className="muted small" style={{ marginTop: 0 }}>{it.url ? 'Replace the link to the client’s dossier.' : 'Not submitted yet. If the client sent their dossier another way, paste its Google Doc link to add it for them.'}</p>
+        <form className="row" style={{ flexWrap: 'nowrap' }} onSubmit={async (e) => { e.preventDefault(); if (await act({ type: 'dossier.save', item: 'dossier', url }, 'Dossier added')) setEditing(false); }}>
+          <input type="text" placeholder="https://docs.google.com/document/d/…" value={url} onChange={(e) => setUrl(e.target.value)} />
+          <button className="btn" disabled={!url.trim()}>Add for the client</button>
+        </form>
+      </>
+    );
   }
+  if (locked && !it.url) return null;
   if (!editing || locked) {
     return (
       <div className="row">
@@ -254,13 +278,13 @@ function Assets({ p, admin, act, say }) {
                 <div className="asset-name" title={f.name}>{f.name}</div>
                 <div className="muted small">{bytes(f.size)}</div>
               </div>
-              {!admin && !locked && <button className="linkbtn" onClick={() => act({ type: 'assets.remove', item: 'assets', pathname: f.pathname })}>Remove</button>}
+              {!locked && <button className="linkbtn" onClick={() => act({ type: 'assets.remove', item: 'assets', pathname: f.pathname })}>Remove</button>}
             </div>
           ))}
         </div>
       )}
-      {admin && !it.files.length && <p className="muted small">No files yet.</p>}
-      {!admin && !locked && (
+      {admin && !it.files.length && !it.external && <p className="muted small" style={{ marginTop: 0 }}>No files yet. If the client sent files another way, add them here for them.</p>}
+      {!locked && (
         <>
           <label className={`drop small-drop${over ? ' over' : ''}`}
             onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
@@ -271,69 +295,89 @@ function Assets({ p, admin, act, say }) {
           {it.status !== 'submitted' && (
             <button className="btn primary" style={{ marginTop: 12 }} disabled={!it.files.length || !!uploading}
               onClick={() => act({ type: 'assets.submit', item: 'assets' }, 'Brand materials submitted')}>
-              Submit {it.files.length ? `${it.files.length} file${it.files.length > 1 ? 's' : ''}` : ''}
+              Submit {it.files.length ? `${it.files.length} file${it.files.length > 1 ? 's' : ''}` : ''}{admin ? ' for the client' : ''}
             </button>
           )}
-          {it.status === 'submitted' && <p className="hint">Submitted. You can still add files; we&apos;ll see them.</p>}
+          {it.status === 'submitted' && !admin && <p className="hint">Submitted. You can still add files; we&apos;ll see them.</p>}
         </>
       )}
     </>
   );
 }
 
-function Video({ p, admin, reload, say, job }) {
+// "Received outside the app": HTR closes a step itself, with a note saying where the material is.
+function Outside({ item, act }) {
+  const [open, setOpen] = useState(false);
+  const [note, setNote] = useState('');
+  if (!open) return <div style={{ marginTop: 10 }}><button className="linkbtn" style={{ padding: 0 }} onClick={() => setOpen(true)}>Received outside the app</button></div>;
+  return (
+    <form className="row" style={{ flexWrap: 'nowrap', marginTop: 10 }} onSubmit={async (e) => { e.preventDefault(); if (await act({ type: 'external', item, note }, 'Marked as received')) setOpen(false); }}>
+      <input type="text" placeholder="Where is it? e.g. a Drive folder link, or “sent by email on Nov 20”" value={note} onChange={(e) => setNote(e.target.value)} />
+      <button className="btn">Mark as received</button>
+      <button type="button" className="linkbtn" onClick={() => setOpen(false)}>Cancel</button>
+    </form>
+  );
+}
+
+// The demo can be one file or several (a recording that was split in two). Each file is transcribed on its own.
+function Video({ p, admin, act, reload, say, jobs = [] }) {
   const it = p.items.video;
+  const parts = videoParts(p);
   const locked = it.status === 'approved';
-  const [replacing, setReplacing] = useState(!it.jobId);
+  const [adding, setAdding] = useState(false);
   const [pct, setPct] = useState(null);
+  const [name, setName] = useState('');
 
   const preview = useContext(Preview);
-  async function upload(file) {
-    if (!file) return;
+  async function upload(list) {
+    const files = Array.from(list || []);
+    if (!files.length) return;
     if (preview) { say(PREVIEW_MSG); return; }
-    if (!mediaType(file.name)) { say('Please choose a video file (MP4, MOV, …).'); return; }
-    try {
-      setPct(0);
-      const blob = await uploadPresigned(`uploads/${p.company}/${safeName(file.name)}`, file, {
-        access: 'private', handleUploadUrl: '/api/upload', headers: { 'x-htr': '1' },
-        contentType: mediaType(file.name), multipart: true, onUploadProgress: ({ percentage }) => setPct(percentage),
-      });
-      await api('/api/jobs', { method: 'POST', body: { pathname: blob.pathname, filename: file.name, projectId: p.id } });
-      await reload();
-      setReplacing(false);
-      say('Video submitted');
-    } catch (e) { say(e.message); } finally { setPct(null); }
+    for (const file of files) {
+      if (!mediaType(file.name)) { say(`${file.name}: please choose a video file (MP4, MOV, …).`); continue; }
+      try {
+        setPct(0); setName(file.name);
+        const blob = await uploadPresigned(`uploads/${p.company}/${safeName(file.name)}`, file, {
+          access: 'private', handleUploadUrl: '/api/upload', headers: { 'x-htr': '1' },
+          contentType: mediaType(file.name), multipart: true, onUploadProgress: ({ percentage }) => setPct(percentage),
+        });
+        await api('/api/jobs', { method: 'POST', body: { pathname: blob.pathname, filename: file.name, projectId: p.id, add: true } });
+        await reload();
+        say(admin ? 'Video added' : 'Video submitted');
+      } catch (e) { say(e.message); }
+    }
+    setPct(null); setName(''); setAdding(false);
   }
 
-  if (admin) {
-    if (!it.jobId) return <p className="muted small">Not uploaded yet.</p>;
-    return (
-      <div className="row">
-        <span className="muted small" style={{ flex: 1 }}>{it.filename}{job ? ` · transcript ${job.status === 'done' ? 'ready' : job.status === 'error' ? 'failed' : 'in progress'}` : ''}</span>
-        <a className="btn" href={`/admin/jobs/${it.jobId}`}>Transcript & editor link</a>
-      </div>
-    );
-  }
-
+  const several = parts.length > 1;
   return (
     <>
-      {it.jobId && !replacing && (
-        <div className="row">
-          <span className="muted small" style={{ flex: 1 }}>Uploaded: <b>{it.filename}</b></span>
-          {!locked && <button className="linkbtn" onClick={() => setReplacing(true)}>Replace video</button>}
-        </div>
-      )}
-      {(replacing && !locked) && (
+      {admin && !parts.length && !it.external && <p className="muted small" style={{ marginTop: 0 }}>Not uploaded yet. If the client sent the recording another way, upload it here for them.</p>}
+      {parts.map((part, i) => {
+        const job = jobs.find((j) => j.id === part.jobId);
+        return (
+          <div className="row" key={part.jobId} style={{ marginBottom: 6 }}>
+            <span className="muted small" style={{ flex: 1 }}>
+              {several ? `Part ${i + 1}: ` : admin ? '' : 'Uploaded: '}<b>{part.filename}</b>
+              {admin && job ? ` · transcript ${job.status === 'done' ? 'ready' : job.status === 'error' ? 'failed' : 'in progress'}` : ''}
+            </span>
+            {admin && <a className="btn" href={`/admin/jobs/${part.jobId}`}>Transcript & editor link</a>}
+            {!locked && pct === null && <button className="linkbtn" onClick={() => { if (preview) { say(PREVIEW_MSG); return; } if (window.confirm(`Remove ${part.filename} from this project?`)) act({ type: 'video.remove', item: 'video', jobId: part.jobId }, 'Removed'); }}>Remove</button>}
+          </div>
+        );
+      })}
+      {!locked && (parts.length === 0 || adding || pct !== null) && (
         <>
-          <p className="muted small" style={{ marginTop: 0 }}>Upload an unedited screen-share demo of your software: ideally 20+ minutes covering every key part of the platform, with voice-over and no talking head over the product. Not a marketing video. Large files are fine; keep this page open until it finishes.</p>
+          {!admin && <p className="muted small" style={{ marginTop: 0 }}>Upload an unedited screen-share demo of your software: ideally 20+ minutes covering every key part of the platform, with voice-over and no talking head over the product. Not a marketing video. Large files are fine; keep this page open until it finishes. If your demo is in more than one file, add each part.</p>}
           <label className="drop small-drop">
-            <strong>{pct !== null ? `Uploading… ${Math.floor(pct)}%` : 'Drop your video or click to choose'}</strong>
-            <input type="file" hidden accept="video/*" disabled={pct !== null} onChange={(e) => upload(e.target.files[0])} />
+            <strong>{pct !== null ? `Uploading ${name}… ${Math.floor(pct)}%` : admin ? 'Drop the video (or each part) or click to choose' : 'Drop your video or click to choose'}</strong>
+            <input type="file" hidden multiple accept="video/*" disabled={pct !== null} onChange={(e) => { upload(e.target.files); e.target.value = ''; }} />
           </label>
           {pct !== null && <div className="bar"><div style={{ width: `${pct}%` }} /></div>}
-          {it.jobId && pct === null && <button className="linkbtn" style={{ marginTop: 8 }} onClick={() => setReplacing(false)}>Cancel</button>}
+          {parts.length > 0 && pct === null && <button className="linkbtn" style={{ marginTop: 8 }} onClick={() => setAdding(false)}>Cancel</button>}
         </>
       )}
+      {!locked && parts.length > 0 && !adding && pct === null && <button className="linkbtn" style={{ padding: 0 }} onClick={() => setAdding(true)}>Add another part</button>}
     </>
   );
 }
@@ -514,7 +558,7 @@ function Check({ state, title, children }) {
   );
 }
 
-function Overview({ p, job, htrEnabled }) {
+function Overview({ p, jobs = [], htrEnabled }) {
   const sts = ITEMS.map((i) => p.items[i].status);
   const submitted = sts.filter((s) => s === 'submitted' || s === 'approved').length;
   const approved = sts.filter((s) => s === 'approved').length;
@@ -524,14 +568,21 @@ function Overview({ p, job, htrEnabled }) {
   const filled = Object.keys(internal.fields || {}).length;
   const htrState = internal.completedAt ? 'done' : filled ? 'partial' : 'todo';
 
-  let tState = 'todo'; let tText = 'No video uploaded yet.';
-  if (job?.status === 'processing') { tState = 'partial'; tText = `Transcribing ${job.filename || 'the video'}…`; }
-  if (job?.status === 'error') { tState = 'error'; tText = `Failed${job.error ? `: ${job.error}` : ''}. Ask the client to upload again.`; }
-  if (job?.status === 'done') {
-    const wpm = job.seconds && job.words != null ? job.words / (job.seconds / 60) : null;
+  const failed = jobs.find((j) => j.status === 'error');
+  const working = jobs.filter((j) => j.status === 'processing');
+  const ready = jobs.filter((j) => j.status === 'done');
+  let tState = 'todo'; let tText = p.items.video.external ? 'The video was received outside the app, so there is no transcript here.' : 'No video uploaded yet.';
+  if (failed) { tState = 'error'; tText = `Failed${jobs.length > 1 ? ` on ${failed.filename}` : ''}${failed.error ? `: ${failed.error}` : ''}. Upload that file again.`; }
+  else if (working.length) { tState = 'partial'; tText = `Transcribing ${working.map((j) => j.filename || 'the video').join(' and ')}…`; }
+  else if (ready.length) {
+    const seconds = ready.reduce((n, j) => n + (j.seconds || 0), 0);
+    const known = ready.every((j) => j.words != null);
+    const words = ready.reduce((n, j) => n + (j.words || 0), 0);
+    const wpm = seconds && known ? words / (seconds / 60) : null;
     const thin = wpm != null && wpm < 40;
+    const speakers = Math.max(...ready.map((j) => j.speakers ?? 0));
     tState = thin ? 'warn' : 'done';
-    tText = [job.durationText, job.speakers != null && `${job.speakers} speaker${job.speakers === 1 ? '' : 's'}`, job.words != null && `${fmtNum(job.words)} words`].filter(Boolean).join(' · ')
+    tText = [ready.length > 1 ? `${ready.length} parts` : null, ready.length > 1 ? duration(seconds) : ready[0].durationText, speakers ? `${speakers} speaker${speakers === 1 ? '' : 's'}` : null, known && `${fmtNum(words)} words`].filter(Boolean).join(' · ')
       + (thin ? '. Very few words for the length; check the audio before scripting.' : '.');
   }
 
@@ -546,13 +597,26 @@ function Overview({ p, job, htrEnabled }) {
         {filled} of {INTERNAL_FIELDS.length} fields filled{internal.completedAt ? ', marked complete' : ''}. <a href="#internal-dossier">Open</a>
       </Check>
       <Check state={tState} title="Transcript">
-        {tText} {job?.status === 'done' && <a href={`/admin/jobs/${job.id}`}>Open transcript</a>}
+        {tText}{' '}
+        {ready.map((j, i) => <a key={j.id} href={`/admin/jobs/${j.id}`} style={{ marginRight: 10 }}>{jobs.length > 1 ? `Open part ${jobs.indexOf(j) + 1}` : 'Open transcript'}</a>)}
       </Check>
     </section>
   );
 }
 
-function People({ people }) {
+// People who can sign in for the client. HTR can add someone by hand; that never sends an email.
+function People({ people, p, act, say }) {
+  const [open, setOpen] = useState(false);
+  const [f, setF] = useState({ first: '', last: '', email: '' });
+  const [busy, setBusy] = useState(false);
+  const change = async (body, note) => {
+    setBusy(true);
+    try {
+      await api(`/api/companies/${p.company}`, { method: 'PATCH', body });
+      if (note) await act({ type: 'note', kind: 'contact.added', text: note });
+      window.location.reload();
+    } catch (e) { say(e.message); setBusy(false); }
+  };
   return (
     <section className="card pad">
       <div className="step-title">People at the client</div>
@@ -561,16 +625,32 @@ function People({ people }) {
           <div style={{ fontWeight: 500 }}>{x.name}</div>
           <div className="small"><a href={`mailto:${x.email}`}>{x.email}</a></div>
           <div className="muted small">
-            {x.joinedAt ? `Joined ${when(x.joinedAt)}` : 'Joined date unknown'}{x.lastLoginAt ? ` · last signed in ${when(x.lastLoginAt)}` : ''}
+            {x.addedByAdmin && !x.lastLoginAt
+              ? <>Added by Hotel Tech Report{x.joinedAt ? ` ${when(x.joinedAt)}` : ''} · has not signed in yet · <button className="linkbtn" style={{ padding: 0 }} disabled={busy} onClick={() => window.confirm(`Remove ${x.email}?`) && change({ removeContact: x.email })}>Remove</button></>
+              : <>{x.joinedAt ? `Joined ${when(x.joinedAt)}` : 'Joined date unknown'}{x.lastLoginAt ? ` · last signed in ${when(x.lastLoginAt)}` : ''}</>}
           </div>
         </div>
       ))}
+      {!open ? <button className="linkbtn" style={{ padding: 0, marginTop: 8 }} onClick={() => setOpen(true)}>Add a person</button> : (
+        <form style={{ marginTop: 10 }} onSubmit={(e) => { e.preventDefault(); change({ addContact: f }, f.email.trim().toLowerCase()); }}>
+          <div className="row" style={{ flexWrap: 'nowrap' }}>
+            <input type="text" placeholder="First name" value={f.first} onChange={(e) => setF({ ...f, first: e.target.value })} />
+            <input type="text" placeholder="Last name" value={f.last} onChange={(e) => setF({ ...f, last: e.target.value })} />
+          </div>
+          <input type="email" placeholder="Work email" style={{ marginTop: 8 }} value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+          <div className="row" style={{ marginTop: 8 }}>
+            <button className="btn" disabled={busy || !f.email.trim()}>Add without emailing</button>
+            <button type="button" className="linkbtn" onClick={() => setOpen(false)}>Cancel</button>
+          </div>
+          <p className="hint">No email is sent now. They can sign in with this address and will land in this project, and so will colleagues on the same email domain. From then on, update requests, messages and script shares do email them.</p>
+        </form>
+      )}
     </section>
   );
 }
 
-function Timeline({ p, job }) {
-  const events = timeline(p, job);
+function Timeline({ p, jobs }) {
+  const events = timeline(p, jobs);
   return (
     <section className="card pad">
       <div className="step-title">Timeline</div>

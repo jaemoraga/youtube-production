@@ -3,7 +3,7 @@
 import { adminAlert, siteUrl } from '@/lib/alerts.js';
 import { notify } from '@/lib/email.js';
 import { whoFromSession } from '@/lib/notify.js';
-import { getProject } from '@/lib/projects.js';
+import { applyAction, getProject } from '@/lib/projects.js';
 import * as S from '@/lib/script.js';
 import { guard } from '@/lib/session.js';
 import { companyContacts } from '@/lib/users.js';
@@ -54,6 +54,11 @@ export async function POST(request, { params }) {
         case 'redo': script = await S.redoFrom(p, a.key); break;
         case 'regenerate': script = await S.regenerateScript(p, { product: a.product, who }); break;
         case 'reset': await S.removeScript(p.id); script = null; break;
+        case 'import': {
+          script = await S.importScript(p, a.text, who);
+          await applyAction(p, who, { type: 'note', kind: 'script.imported', text: `${S.analyze(script.versions[0].text).words.toLocaleString('en-US')} spoken words` }).catch(() => {});
+          break;
+        }
         case 'edit': script = await S.saveEdit(p, a.text, who); break;
         case 'share': {
           const r = await S.share(p, who); script = r.script;

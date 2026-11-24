@@ -20,7 +20,7 @@ export async function GET(request) {
 // Called by the browser right after an upload finishes: starts the transcription.
 // Allowed for the admin, a signed-in client (their own company), or a holder of a company upload link.
 export async function POST(request) {
-  const { pathname, filename, token, terms, projectId } = await request.json().catch(() => ({}));
+  const { pathname, filename, token, terms, projectId, add } = await request.json().catch(() => ({}));
   const s = await getSession();
   const role = token ? 'link' : s?.r;
   if (!['link', 'admin', 'client'].includes(role)) return Response.json({ error: 'Not allowed' }, { status: 401 });
@@ -43,7 +43,7 @@ export async function POST(request) {
     });
     if (project) {
       const who = await whoFromSession(s);
-      const { event } = await applyAction(project, who, { type: 'video.set', item: 'video', jobId: job.id, filename: job.filename });
+      const { event } = await applyAction(project, who, { type: 'video.set', item: 'video', jobId: job.id, filename: job.filename, add: !!add });
       await notifyEvent(project, who, event);
     }
     // Clients only learn that it worked; transcripts are visible to HTR only.

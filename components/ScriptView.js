@@ -142,6 +142,7 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
           </button>
         </div>
         <p className="hint">Nothing is shown to the client until you approve it.</p>
+        <ImportScript busy={busy} run={run} />
       </section>
     );
   }
@@ -233,7 +234,7 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
 
           <section className="card pad">
             <div className="row" style={{ justifyContent: 'space-between' }}>
-              <div className="step-title">Script <span className="muted" style={{ fontWeight: 400 }}>· version {v.n} · {v.source === 'generated' ? 'as written' : v.source === 'revision' ? 'after client revisions' : 'edited by you'} · {(script.analysis?.words ?? v.text.split(/\s+/).length).toLocaleString('en-US')} spoken words</span></div>
+              <div className="step-title">Script <span className="muted" style={{ fontWeight: 400 }}>· version {v.n} · {v.source === 'generated' ? 'as written' : v.source === 'imported' ? 'imported' : v.source === 'revision' ? 'after client revisions' : 'edited by you'} · {(script.analysis?.words ?? v.text.split(/\s+/).length).toLocaleString('en-US')} spoken words</span></div>
               <div className="row">
                 {editing === null && !script.client?.approvedAt && <button className="btn" onClick={() => setEditing(v.text)}>Edit</button>}
                 <button className="btn" onClick={async () => { await navigator.clipboard.writeText(v.text); say('Copied'); }}>Copy</button>
@@ -299,6 +300,24 @@ function Drafted({ c, busy, run }) {
 }
 
 // Length against budget, the independent score of the draft, and the app's own checks.
+// A script written somewhere else (ChatGPT, a Google Doc) can be pasted in and reviewed here like any other.
+function ImportScript({ busy, run }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState('');
+  if (!open) return <p className="small" style={{ margin: '14px 0 0' }}>Already have a script that was written somewhere else? <button className="linkbtn" style={{ padding: 0 }} onClick={() => setOpen(true)}>Import it</button></p>;
+  return (
+    <div style={{ marginTop: 14 }}>
+      <div className="step-title">Import a script</div>
+      <p className="muted small" style={{ marginTop: 0 }}>Paste the whole script. Headings like &ldquo;## 3. Feature Walkthrough&rdquo; become section headings; the words are kept exactly. It is saved as version 1 and not shown to the client until you approve it.</p>
+      <textarea className="script-edit" value={text} onChange={(e) => setText(e.target.value)} placeholder="Paste the script here" />
+      <div className="row">
+        <button className="btn primary" disabled={!!busy || text.trim().length < 200} onClick={() => run('import', { type: 'import', text }, 'Script imported. Not shown to the client.')}>{busy === 'import' ? 'Importing…' : 'Import script'}</button>
+        <button className="linkbtn" onClick={() => setOpen(false)}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 function Quality({ script, v }) {
   const a = script.analysis;
   if (!a?.sections?.length) return null;
@@ -321,10 +340,11 @@ function Quality({ script, v }) {
         </tbody>
       </table>
       {v.draftScore && <p className="small" style={{ margin: '10px 0 0' }}><b>Independent score of the draft: {v.draftScore}/100.</b> <span className="muted">Scored in a separate conversation before the final fixes, so the finished script should be better than this number. The full scorecard is under How it was written.</span></p>}
-      {script.checks.length > 0
+      {script.imported ? <p className="small muted" style={{ margin: '8px 0 0' }}>This script was written outside the app and imported, so the app&apos;s writing checks were not run on it.</p>
+        : script.checks.length > 0
         ? <ul className="script-checks">{script.checks.map((c, i) => <li key={i}>{c}</li>)}</ul>
         : <p className="small muted" style={{ margin: '8px 0 0' }}>Checks passed: every section is within budget, no ruled-out phrases, one review count throughout, ends on a verdict or call to action.</p>}
-      {!script.currentProcess && <p className="hint">Written with the earlier process. Click Regenerate script at the top to rewrite it with the current one; the old run is kept in the archive.</p>}
+      {!script.currentProcess && !script.imported && <p className="hint">Written with the earlier process. Click Regenerate script at the top to rewrite it with the current one; the old run is kept in the archive.</p>}
       {script.previous && v.source === 'generated' && <p className="small muted" style={{ margin: '8px 0 0' }}>Previous run: {script.previous.words.toLocaleString('en-US')} spoken words{script.previous.draftScore ? `, draft scored ${script.previous.draftScore}/100` : ''}{script.previous.pipeline !== script.pipeline ? ', earlier writing process' : ''}. Archived.</p>}
     </section>
   );
