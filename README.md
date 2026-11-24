@@ -69,6 +69,22 @@ update with a comment; the client is emailed and the step goes back to them. Whe
 approved the client gets an "all set" email. People from the same email domain join the same
 company; personal addresses (gmail etc.) get their own.
 
+### Loading a project for a client yourself
+For a client who sent their materials another way (email, a shared drive) or before the portal existed,
+an admin can fill the checklist from the project page. None of this emails the client.
+
+- **Add for the client.** Paste the dossier link, drop in brand files, or upload the video on each step.
+- **Received outside the app.** Closes a step with a note saying where the material is (HTR only sees the note).
+- **Video in several files.** Add each part; every part gets its own transcript and editor link, and script
+  generation reads them all in order.
+- **Add a person.** Under *People at the client*, add a name and work email. No email is sent. They can sign in
+  with that address and land in the project, and colleagues on the same email domain join the same company.
+- **Import a script.** On the Script page, paste a script written elsewhere. It is saved as version 1, hidden
+  from the client until you approve it, and then follows the usual comments and revisions flow.
+
+When HTR supplied every step itself, approving the checklist does not send the "You're all set" email.
+After a person is added, messages, update requests and script shares email them as usual.
+
 ### Setting it up
 1. **Email (Resend).** Create an account at https://resend.com, add the domain you send from
    (e.g. `hoteltechreport.com` or `mail.hoteltechreport.com`), add the DNS records it shows, and

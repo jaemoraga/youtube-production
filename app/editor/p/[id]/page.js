@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import EditorTranscript from '@/components/EditorTranscript.js';
 import TopBar from '@/components/TopBar.js';
 import { bytesText } from '@/lib/format-bytes.js';
-import { getProject } from '@/lib/projects.js';
+import { getProject, videoParts } from '@/lib/projects.js';
 import { requirePage } from '@/lib/session.js';
 import { syncJob } from '@/lib/jobs.js';
 import { getJob, readJSON, transcriptPath } from '@/lib/store.js';
@@ -17,9 +17,14 @@ export default async function EditorProject({ params }) {
   const { id } = await params;
   const p = await getProject(id);
   if (!p) notFound();
-  let job = p.items.video.jobId ? await getJob(p.items.video.jobId) : null;
-  if (job) job = await syncJob(job).catch(() => job);   // in case the finished-webhook was missed
-  const t = job?.status === 'done' ? await readJSON(transcriptPath(job.id)) : null;
+  // The demo can come in several files; each has its own transcript, with timestamps from the start of that file.
+  const videos = (await Promise.all(videoParts(p).map(async (part) => {
+    let job = await getJob(part.jobId).catch(() => null);
+    if (!job) return null;
+    job = await syncJob(job).catch(() => job);   // in case the finished-webhook was missed
+    return { job, t: job.status === 'done' ? await readJSON(transcriptPath(job.id)).catch(() => null) : null };
+  }))).filter(Boolean);
+  const several = videos.length > 1;
   const files = p.items.assets.files;
 
   return (
@@ -32,17 +37,19 @@ export default async function EditorProject({ params }) {
       <div className="editor-grid">
         <section className="card pad">
           <div className="step-title">Raw video</div>
-          {job
-            ? <><p className="muted small">{job.title || job.filename} · {bytesText(job.size)}</p>
-              <a className="btn primary" href={fileUrl(job.pathname)} target="_blank" rel="noreferrer">Watch / download</a></>
-            : <p className="muted small">Not uploaded yet.</p>}
+          {videos.length ? videos.map(({ job }, i) => (
+            <div key={job.id} style={{ marginBottom: several ? 12 : 0 }}>
+              <p className="muted small">{several ? `Part ${i + 1}: ` : ''}{job.title || job.filename} · {bytesText(job.size)}</p>
+              <a className="btn primary" href={fileUrl(job.pathname)} target="_blank" rel="noreferrer">Watch / download{several ? ` part ${i + 1}` : ''}</a>
+            </div>
+          )) : <p className="muted small">{p.items.video.external ? `Not in the app.${p.items.video.externalNote ? ` ${p.items.video.externalNote}` : ''}` : 'Not uploaded yet.'}</p>}
         </section>
         <section className="card pad">
           <div className="step-title">Sponsor dossier</div>
           <p className="muted small">What the company does, its products, and what to show.</p>
           {p.items.dossier.url
             ? <a className="btn" href={p.items.dossier.url} target="_blank" rel="noreferrer">Open dossier ↗</a>
-            : <p className="muted small">Not submitted yet.</p>}
+            : <p className="muted small">{p.items.dossier.external ? `Not in the app.${p.items.dossier.externalNote ? ` ${p.items.dossier.externalNote}` : ''}` : 'Not submitted yet.'}</p>}
         </section>
       </div>
 
@@ -65,8 +72,14 @@ export default async function EditorProject({ params }) {
       </section>
 
       <div style={{ marginTop: 16 }}>
-        {t ? <EditorTranscript t={t} job={{ title: job.title || null, filename: job.filename, companyName: p.companyName, speakerNames: job.speakerNames || {} }} />
-          : <div className="card pad"><div className="step-title">Transcript</div><p className="muted small">{job ? 'Being transcribed. Check back in a few minutes.' : 'Available once the video is uploaded.'}</p></div>}
+        {!videos.length && <div className="card pad"><div className="step-title">Transcript</div><p className="muted small">Available once the video is uploaded.</p></div>}
+        {videos.map(({ job, t }, i) => (
+          <div key={job.id} style={{ marginTop: i ? 16 : 0 }}>
+            {several && <h2 className="section-title">Part {i + 1}: {job.title || job.filename}</h2>}
+            {t ? <EditorTranscript t={t} job={{ title: job.title || null, filename: job.filename, companyName: p.companyName, speakerNames: job.speakerNames || {} }} />
+              : <div className="card pad"><div className="step-title">Transcript</div><p className="muted small">Being transcribed. Check back in a few minutes.</p></div>}
+          </div>
+        ))}
       </div>
     </div>
   );
