@@ -332,7 +332,7 @@ function Quality({ script, v }) {
         <thead><tr><th>Section</th><th>Words</th><th>Budget</th>{before.length > 0 && v.source === 'generated' && <th>Before fixes</th>}</tr></thead>
         <tbody>
           {a.sections.map((x, i) => (
-            <tr key={i} className={x.over ? 'over' : x.under ? 'under' : ''}>
+            <tr key={i} className={script.imported ? '' : x.over ? 'over' : x.under ? 'under' : ''}>
               <td>{x.label}</td><td>{x.words}</td><td>{x.max ? `${x.min} to ${x.max}` : ''}</td>
               {before.length > 0 && v.source === 'generated' && <td className="muted">{before.find((b) => b.id === x.id)?.words ?? ''}</td>}
             </tr>

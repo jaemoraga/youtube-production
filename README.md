@@ -85,6 +85,22 @@ an admin can fill the checklist from the project page. None of this emails the c
 When HTR supplied every step itself, approving the checklist does not send the "You're all set" email.
 After a person is added, messages, update requests and script shares email them as usual.
 
+### The editor view
+`/editor` is what the video editor works from. It assumes no knowledge of hotels or of the product.
+
+- **Raw demo videos** to download, one per file the client uploaded, in order, each with the client's label.
+  With more than one file, the client is asked to label each and told why; HTR can label or reorder them too.
+- **Brand materials** (or HTR's note on where they are kept).
+- **Editing guide.** Built from the admin project page (*Build editing guide*) once there is a script and the
+  demo transcripts are done. One AI call reads the script and the timestamped demo transcripts and says, for
+  each script paragraph, which file and which seconds show the same thing and what to look for on screen, or
+  that the presenter is on camera, or that the demo has no footage for it. It also writes a plain-language
+  glossary and divides the demo into topics. Every time is checked against the real transcript: a clip is
+  placed on the exact second its quoted words are spoken, marked "about" when only the clock time fits, and
+  dropped when neither does. Rebuild it when the script or the videos change; the page says when it is out of date.
+- **Demo transcript**, labelled as the client's recording and not the script, with the moments the script uses
+  highlighted and linked back to the script line.
+
 ### Setting it up
 1. **Email (Resend).** Create an account at https://resend.com, add the domain you send from
    (e.g. `hoteltechreport.com` or `mail.hoteltechreport.com`), add the DNS records it shows, and
