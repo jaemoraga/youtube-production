@@ -317,3 +317,38 @@ textarea.autogrow { field-sizing: content; min-height: 64px; max-height: 420px; 
 
 .script-wordcount { display: flex; align-items: center; gap: 16px; }
 .script-wordcount-n { font-size: 34px; font-weight: 650; line-height: 1; font-variant-numeric: tabular-nums; }
+
+/* ---------- editor: videos, editing guide, demo transcript marks ---------- */
+.editor-steps ol { margin: 8px 0 0; padding-left: 20px; font-size: 14.5px; line-height: 1.7; }
+.editor-video { display: flex; gap: 10px; align-items: center; padding: 12px 0; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.video-part { padding: 6px 0 10px; }
+.part-label { margin-top: 6px; font-size: 14px; }
+.part-label.empty { border-color: var(--warn); background: var(--warn-soft); }
+.guide-intro { padding: 16px 18px; border-bottom: 1px solid var(--border); font-size: 14.5px; line-height: 1.6; }
+.guide-intro p { margin: 0 0 10px; }
+.guide-glossary { padding: 12px 18px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.guide-glossary summary { cursor: pointer; font-weight: 500; }
+.guide-glossary dl { margin: 10px 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 24px; }
+.guide-glossary dt { font-weight: 600; }
+.guide-glossary dd { margin: 0; color: var(--muted); }
+.guide-section h3 { margin: 0; padding: 14px 18px 8px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--bg); border-bottom: 1px solid var(--border); }
+.guide-row { display: grid; grid-template-columns: 1.15fr 1fr; gap: 20px; padding: 14px 18px; border-bottom: 1px solid var(--border); scroll-margin-top: 12px; }
+.guide-row:target, .used-by a:target { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+.guide-n { font-size: 12px; color: var(--faint); margin-bottom: 2px; }
+.guide-script p { margin: 0; font-size: 15px; line-height: 1.6; }
+.guide-show { font-size: 14px; line-height: 1.5; border-left: 3px solid var(--ok); padding-left: 12px; }
+.kind-host .guide-show { border-left-color: var(--border-strong); }
+.kind-other .guide-show { border-left-color: var(--warn); }
+.guide-kind { font-weight: 500; }
+.guide-clip + .guide-clip { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.guide-time { font-weight: 600; font-variant-numeric: tabular-nums; text-decoration: none; color: var(--accent); }
+.guide-time:hover { text-decoration: underline; }
+.guide-what { margin: 3px 0; }
+.guide-note { margin-top: 6px; color: var(--muted); font-size: 13.5px; }
+.viewer .chapter { margin: 18px 0 6px; padding: 6px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; font-size: 13.5px; line-height: 1.5; }
+.viewer .chapter time { color: var(--faint); margin-right: 8px; font-variant-numeric: tabular-nums; font-size: 12px; }
+.viewer .used { background: var(--accent-soft); border-radius: 8px; padding: 6px 10px; margin: 4px -10px; }
+.viewer .used p { margin-bottom: 4px; }
+.viewer .used-by { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+.viewer .used-by a { font-size: 12px; font-weight: 500; color: var(--accent); background: var(--surface); border: 1px solid var(--border); border-radius: 99px; padding: 1px 9px; text-decoration: none; scroll-margin-top: 80px; }
+@media (max-width: 760px) { .guide-row { grid-template-columns: 1fr; gap: 10px; } .guide-glossary dl { grid-template-columns: 1fr; } }

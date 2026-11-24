@@ -2,7 +2,7 @@
 // The project checklist. role="client": the sponsor completes items. role="admin": HTR reviews them.
 import { uploadPresigned } from '@vercel/blob/client';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { GROUP_HINT, INTERNAL_FIELDS, ITEM_LABEL, ITEMS, STATUS_TEXT, projectStatus, timeline, videoParts } from '@/lib/project-shared.js';
+import { GROUP_HINT, INTERNAL_FIELDS, ITEM_LABEL, ITEMS, STATUS_TEXT, projectStatus, timeline, unlabeledParts, videoParts } from '@/lib/project-shared.js';
 import { assetType, mediaType, safeName } from '@/lib/media.js';
 import { api, bytes, duration, useToast, when } from './ui.js';
 
@@ -100,6 +100,7 @@ export default function ProjectView({ initial, role, templateUrl, jobs = [], htr
           <a className={`btn${script || status === 'scripting' ? ' primary' : ''}`} href={`/admin/projects/${p.id}/script`}>{script ? 'Open script' : status === 'scripting' ? 'Generate script' : 'Import a script'}</a>
         </section>
       )}
+      {admin && <GuideCard p={p} hasScript={!!script} say={say} />}
       {admin && (
         <div className="trash-row">
           <button className="btn danger" onClick={async () => {
@@ -312,10 +313,21 @@ function Outside({ item, act }) {
   if (!open) return <div style={{ marginTop: 10 }}><button className="linkbtn" style={{ padding: 0 }} onClick={() => setOpen(true)}>Received outside the app</button></div>;
   return (
     <form className="row" style={{ flexWrap: 'nowrap', marginTop: 10 }} onSubmit={async (e) => { e.preventDefault(); if (await act({ type: 'external', item, note }, 'Marked as received')) setOpen(false); }}>
-      <input type="text" placeholder="Where is it? e.g. a Drive folder link, or “sent by email on Nov 20”" value={note} onChange={(e) => setNote(e.target.value)} />
+      <input type="text" autoFocus placeholder="Where is it? e.g. a Drive folder link, or “sent by email on Nov 20”" value={note} onChange={(e) => setNote(e.target.value)} />
       <button className="btn">Mark as received</button>
       <button type="button" className="linkbtn" onClick={() => setOpen(false)}>Cancel</button>
     </form>
+  );
+}
+
+// What this file shows, in the client's words. Saved when the field loses focus or Enter is pressed.
+function PartLabel({ value, onSave }) {
+  const [v, setV] = useState(value);
+  const save = () => { if (v.trim() !== value) onSave(v); };
+  return (
+    <input type="text" className={`part-label${value ? '' : ' empty'}`} value={v} maxLength={120}
+      placeholder="What does this file show? e.g. Part 1: inbox, AI assistant and guest profiles"
+      onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); } }} />
   );
 }
 
@@ -350,19 +362,38 @@ function Video({ p, admin, act, reload, say, jobs = [] }) {
   }
 
   const several = parts.length > 1;
+  const missing = unlabeledParts(p);
+  const change = (jobId, extra) => { if (preview) { say(PREVIEW_MSG); return; } act({ type: 'video.update', item: 'video', jobId, ...extra }); };
+  // Labels and order stay editable for HTR after approval; for the client, until then.
+  const canLabel = admin || !locked;
   return (
     <>
       {admin && !parts.length && !it.external && <p className="muted small" style={{ marginTop: 0 }}>Not uploaded yet. If the client sent the recording another way, upload it here for them.</p>}
+      {several && missing > 0 && (
+        <div className="callout" style={{ margin: '0 0 12px' }}>
+          <b>{admin ? `${missing} of ${parts.length} videos ${missing === 1 ? 'has' : 'have'} no label.` : 'Please label each video.'}</b>{' '}
+          {admin
+            ? 'The editor sees these labels beside each download. Label them here, or use Request update to ask the client.'
+            : 'Say what each file shows (for example “Part 1: inbox and AI assistant”) and put them in the order they should be watched. This is critical: our video editor does not know your product, and the labels are how they find the right clip for each part of the script.'}
+        </div>
+      )}
       {parts.map((part, i) => {
         const job = jobs.find((j) => j.id === part.jobId);
         return (
-          <div className="row" key={part.jobId} style={{ marginBottom: 6 }}>
-            <span className="muted small" style={{ flex: 1 }}>
-              {several ? `Part ${i + 1}: ` : admin ? '' : 'Uploaded: '}<b>{part.filename}</b>
-              {admin && job ? ` · transcript ${job.status === 'done' ? 'ready' : job.status === 'error' ? 'failed' : 'in progress'}` : ''}
-            </span>
-            {admin && <a className="btn" href={`/admin/jobs/${part.jobId}`}>Transcript & editor link</a>}
-            {!locked && pct === null && <button className="linkbtn" onClick={() => { if (preview) { say(PREVIEW_MSG); return; } if (window.confirm(`Remove ${part.filename} from this project?`)) act({ type: 'video.remove', item: 'video', jobId: part.jobId }, 'Removed'); }}>Remove</button>}
+          <div className="video-part" key={part.jobId}>
+            <div className="row" style={{ flexWrap: 'nowrap' }}>
+              <span className="muted small" style={{ flex: 1, minWidth: 0 }}>
+                {several ? `Part ${i + 1}: ` : admin ? '' : 'Uploaded: '}<b>{part.filename}</b>
+                {admin && job ? ` · transcript ${job.status === 'done' ? 'ready' : job.status === 'error' ? 'failed' : 'in progress'}` : ''}
+              </span>
+              {several && canLabel && i > 0 && <button className="linkbtn" title="Move earlier" onClick={() => change(part.jobId, { move: 'up' })}>↑</button>}
+              {several && canLabel && i < parts.length - 1 && <button className="linkbtn" title="Move later" onClick={() => change(part.jobId, { move: 'down' })}>↓</button>}
+              {admin && <a className="btn" href={`/admin/jobs/${part.jobId}`}>Transcript</a>}
+              {!locked && pct === null && <button className="linkbtn" onClick={() => { if (preview) { say(PREVIEW_MSG); return; } if (window.confirm(`Remove ${part.filename} from this project?`)) act({ type: 'video.remove', item: 'video', jobId: part.jobId }, 'Removed'); }}>Remove</button>}
+            </div>
+            {(several || part.label) && (canLabel
+              ? <PartLabel key={`${part.jobId}-${part.label || ''}`} value={part.label || ''} onSave={(label) => change(part.jobId, { label })} />
+              : <div className="small" style={{ marginTop: 4 }}>{part.label}</div>)}
           </div>
         );
       })}
@@ -543,6 +574,39 @@ function HtrPull({ p, htr, src, say, onPulled }) {
 }
 
 // ---------- admin-only panels ----------
+// The editing guide maps each script paragraph to the moment in the demo recording that shows it.
+function GuideCard({ p, hasScript, say }) {
+  const [d, setD] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState('');
+  useEffect(() => { api(`/api/projects/${p.id}/guide`).then(setD).catch(() => {}); }, [p.id, hasScript, p.items.video.parts?.length]);
+  const build = async () => {
+    setBusy(true); setProblem('');
+    try { setD(await api(`/api/projects/${p.id}/guide`, { method: 'POST', body: {} })); say('Editing guide built'); }
+    catch (e) { setProblem(e.message); }
+    setBusy(false);
+  };
+  const g = d?.guide;
+  return (
+    <section className="card pad script-entry" id="editing-guide">
+      <div style={{ minWidth: 0 }}>
+        <div className="step-title">Editing guide <span className="htr-only">For the editor</span></div>
+        <div className="muted small">
+          {busy ? 'Reading the script and the demo transcript. This takes one to three minutes; keep this page open.'
+            : g ? <>Built {when(g.builtAt)} from script version {g.scriptVersion}: {g.demo} script {g.demo === 1 ? 'paragraph is' : 'paragraphs are'} matched to {g.clips} {g.clips === 1 ? 'moment' : 'moments'} in the demo{g.approximate ? ` (${g.approximate} approximate)` : ''}, {g.host} on camera, {g.other} with no demo footage.{d.stale ? <> <b>Out of date.</b> {d.stale}</> : null}</>
+              : d?.blocker ? d.blocker
+                : 'Matches each part of the script to the moment in the demo recording that shows it, in plain language, so the editor needs no product knowledge.'}
+          {problem ? <><br /><b>That didn&apos;t work.</b> {problem}</> : null}
+        </div>
+      </div>
+      <div className="row" style={{ flex: 'none' }}>
+        {g && <a className="linkbtn" href={`/editor/p/${p.id}#editing-guide`}>Open in editor view</a>}
+        <button className={`btn${!g || d?.stale ? ' primary' : ''}`} disabled={busy || !d || !!d.blocker} onClick={build}>{busy ? 'Building…' : g ? 'Rebuild' : 'Build editing guide'}</button>
+      </div>
+    </section>
+  );
+}
+
 const fmtNum = (n) => Number(n).toLocaleString('en-US');
 
 function Check({ state, title, children }) {
