@@ -92,12 +92,17 @@ After a person is added, messages, update requests and script shares email them 
   With more than one file, the client is asked to label each and told why; HTR can label or reorder them too.
 - **Brand materials** (or HTR's note on where they are kept).
 - **Editing guide.** Built from the admin project page (*Build editing guide*) once there is a script and the
-  demo transcripts are done. One AI call reads the script and the timestamped demo transcripts and says, for
-  each script paragraph, which file and which seconds show the same thing and what to look for on screen, or
-  that the presenter is on camera, or that the demo has no footage for it. It also writes a plain-language
-  glossary and divides the demo into topics. Every time is checked against the real transcript: a clip is
-  placed on the exact second its quoted words are spoken, marked "about" when only the clock time fits, and
-  dropped when neither does. Rebuild it when the script or the videos change; the page says when it is out of date.
+  demo transcripts are done. One AI call reads the script and the timestamped demo transcripts and returns the
+  product's features. The main view has one card per feature: the time to go to in the demo to find it (and
+  what is on screen there), and the script lines to put it over. Other views: the script in order, the lines
+  with no demo footage (with what to use instead), and a plain-language glossary. Each time is anchored on the
+  sentence where the presenter names the feature and checked against the transcript: it is placed on the exact
+  second those words are spoken, marked "about" when only the clock time fits, and dropped when neither does.
+  The time is when the feature is talked about; the app cannot see the screen. Rebuild when the script or the
+  videos change; the page says when the guide is out of date.
+- **The vendor's YouTube channel.** Set the channel address on the admin project page. The editor page lists
+  the channel's 15 most recent videos (YouTube's public feed, no API key) with links to watch them. They cannot
+  be downloaded from the app; the editor reports which video and time, and HTR asks the client for the file.
 - **Demo transcript**, labelled as the client's recording and not the script, with the moments the script uses
   highlighted and linked back to the script line.
 

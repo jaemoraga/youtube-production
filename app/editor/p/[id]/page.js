@@ -4,14 +4,15 @@ import EditorProduction from '@/components/EditorProduction.js';
 import EditorTranscript from '@/components/EditorTranscript.js';
 import TopBar from '@/components/TopBar.js';
 import { bytesText } from '@/lib/format-bytes.js';
-import { partName, scriptParagraphs } from '@/lib/guide-shared.js';
+import { GUIDE_FORMAT, partName, scriptParagraphs } from '@/lib/guide-shared.js';
 import { editorScript, getGuide, staleReason } from '@/lib/guide.js';
 import { forRole, getProject, projectStatus, videoParts } from '@/lib/projects.js';
 import { STAGE } from '@/lib/stages.js';
 import { getScript } from '@/lib/script.js';
 import { requirePage } from '@/lib/session.js';
 import { syncJob } from '@/lib/jobs.js';
-import { getJob, readJSON, transcriptPath } from '@/lib/store.js';
+import { getCompanies, getJob, readJSON, transcriptPath } from '@/lib/store.js';
+import { channelFeed } from '@/lib/youtube.js';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Editor · Hotel Tech Report' };
@@ -43,7 +44,10 @@ export default async function EditorProject({ params }) {
   const v = editorScript(script);
   // The guide is only shown against the demo files it was built from.
   const stored = await getGuide(p.id);
-  const guide = stored && stored.partsKey === videos.map((x) => x.part.jobId).join(',') ? stored : null;
+  const guide = stored && stored.format === GUIDE_FORMAT && stored.partsKey === videos.map((x) => x.part.jobId).join(',') ? stored : null;
+  const company = (await getCompanies()).find((c) => c.slug === p.company);
+  const feed = company?.youtubeChannelId ? await channelFeed(company.youtubeChannelId) : null;
+  const day = (iso) => (iso ? new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '');
   const stale = stored ? staleReason(stored, script, p) : null;
   const names = videos.map((x) => ({ label: x.part.label || '', filename: x.job.title || x.job.filename }));
 
@@ -60,7 +64,8 @@ export default async function EditorProject({ params }) {
         <ol>
           <li><a href="#raw-video">The raw demo {several ? 'videos' : 'video'}</a>: the client&apos;s screen recording of their product. Download {several ? 'them' : 'it'}; this is the footage you cut from.</li>
           <li><a href="#brand-materials">Brand materials</a>: the client&apos;s logo, screenshots and anything else to use on screen.</li>
-          <li><a href="#editing-guide">The editing guide</a>: the script, line by line, with the exact place in the demo that shows each thing.</li>
+          <li><a href="#editing-guide">The editing guide</a>: each feature of the product, the time to find it in the demo, and the script lines it goes over.</li>
+          {company?.youtube && <li><a href="#vendor-youtube">{p.companyName}&apos;s YouTube channel</a>: their own videos, for extra footage.</li>}
           <li><a href="#demo-transcript">The demo transcript</a>: everything said in the demo, with timestamps. It is not the script.</li>
           <li><a href="#production">Production</a>: paste the raw footage link, then each Frame.io cut as it is ready. Pasting a cut sends it to the client.</li>
         </ol>
@@ -110,10 +115,32 @@ export default async function EditorProject({ params }) {
           : (
             <section className="card pad" id="editing-guide">
               <div className="step-title">Editing guide: script matched to the demo recording</div>
-              <p className="muted small" style={{ margin: 0 }}>{!v ? 'The script has not been written yet.' : stored ? 'The demo videos changed, so the guide is being redone. Check back soon.' : 'Hotel Tech Report has not built the guide for this project yet. Check back soon, or ask them for it.'}</p>
+              <p className="muted small" style={{ margin: 0 }}>{!v ? 'The script has not been written yet.' : stored ? 'The guide is being redone. Check back soon.' : 'Hotel Tech Report has not built the guide for this project yet. Check back soon, or ask them for it.'}</p>
             </section>
           )}
       </div>
+
+      {company?.youtube && (
+        <section className="card pad" id="vendor-youtube" style={{ marginTop: 16 }}>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <div className="step-title" style={{ margin: 0 }}>{p.companyName} on YouTube{feed?.videos.length ? `: latest ${feed.videos.length} videos` : ''}</div>
+            <a className="btn" href={`${company.youtube}/videos`} target="_blank" rel="noreferrer">Open the full channel ↗</a>
+          </div>
+          <p className="muted small">{p.companyName}&apos;s own published videos, for extra footage of the product beyond the demo recording. Click one to watch it on YouTube. These cannot be downloaded from here: when you find footage you want, tell Hotel Tech Report which video and the time, and we will ask {p.companyName} for the original file.</p>
+          {!feed?.videos.length && <p className="muted small">The list could not be loaded just now. Use the button above to open the channel.</p>}
+          {feed?.videos.length > 0 && (
+            <div className="yt-grid">
+              {feed.videos.map((x) => (
+                <a className="yt" key={x.id} href={x.url} target="_blank" rel="noreferrer">
+                  <img src={x.thumb} alt="" loading="lazy" />
+                  <span className="yt-title">{x.title}</span>
+                  <span className="muted small">{day(x.published)}</span>
+                </a>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <h2 className="section-title" id="demo-transcript" style={{ marginTop: 32, marginBottom: 6 }}>Demo recording {several ? 'transcripts' : 'transcript'}</h2>
       <p className="muted small" style={{ margin: '0 0 16px' }}>What the client says while showing their product. <b>This is not the script</b> and it is not spoken in the finished video. It is here so you can find footage{guide ? ': the highlighted lines are the moments the script uses, and the bold lines mark where each topic starts' : ''}.</p>
