@@ -2,7 +2,7 @@
 import { validEmail, normEmail } from '@/lib/codes.js';
 import { forClient, listOrders, placeOrder } from '@/lib/orders.js';
 import { guard } from '@/lib/session.js';
-import { stripeMode } from '@/lib/stripe.js';
+import { stripeKeyProblem, stripeMode } from '@/lib/stripe.js';
 import { getUser } from '@/lib/users.js';
 
 export const maxDuration = 60;
@@ -11,7 +11,7 @@ export async function GET(request) {
   const [s, denied] = await guard(request, ['admin', 'client']);
   if (denied) return denied;
   if (s.r === 'client') return Response.json({ orders: (await listOrders({ company: s.c })).map(forClient) });
-  return Response.json({ orders: await listOrders(), stripe: stripeMode(), webhook: !!process.env.STRIPE_WEBHOOK_SECRET });
+  return Response.json({ orders: await listOrders(), stripe: stripeMode(), stripeProblem: stripeKeyProblem(), webhook: !!process.env.STRIPE_WEBHOOK_SECRET });
 }
 
 export async function POST(request) {
