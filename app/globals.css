@@ -40,7 +40,7 @@ h2 { font-size: 15px; font-weight: 600; margin: 40px 0 12px; }
 .linkbtn { background: none; border: 0; text-decoration: none; padding: 4px 6px; color: var(--muted); font: inherit; font-size: 13px; cursor: pointer; border-radius: 6px; }
 .linkbtn:hover { color: var(--text); background: var(--border); }
 
-input[type=text], input[type=password], textarea, select {
+input[type=text], input[type=password], input[type=date], textarea, select {
   width: 100%; font: inherit; font-size: 14px; color: var(--text); background: var(--surface);
   border: 1px solid var(--border); border-radius: 9px; padding: 9px 11px; }
 textarea { min-height: 64px; resize: vertical; }
@@ -441,3 +441,14 @@ table.small td, table.small th { font-size: 13px; padding: 6px 8px; vertical-ali
 .guide-how li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg); border-radius: 10px; font-size: 14px; font-weight: 500; }
 .guide-how span { display: grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 600; }
 @media (max-width: 760px) { .guide-how { grid-template-columns: 1fr; } }
+
+/* Ordering */
+.order-line { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.qty { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.qty span { min-width: 22px; text-align: center; font-weight: 600; font-variant-numeric: tabular-nums; }
+.qty .btn { width: 34px; height: 34px; padding: 0; justify-content: center; font-size: 17px; }
+.order-total { margin-top: 16px; padding: 14px; border-radius: 10px; background: var(--bg); font-size: 14px; display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
+.orders-table td { vertical-align: top; }
+.code-form { display: grid; grid-template-columns: 1.2fr .9fr .8fr 1fr .8fr 1.6fr auto; gap: 8px; align-items: end; }
+.code-form label span { display: block; }
+@media (max-width: 760px) { .code-form { grid-template-columns: 1fr 1fr; } .order-line { align-items: flex-start; } }

@@ -58,8 +58,8 @@ Three roles share one site:
 
 | Who | Where | Signs in with |
 |---|---|---|
-| Anyone (public home) | `youtube-studio.hoteltechinsider.com` | what we make, examples, one email box. New emails become leads (account, no project, admin alert); existing sponsors sign in here too. |
-| Client (sponsor) | `youtube-studio.hoteltechinsider.com/client-submission/youtube` | work email → 6-digit code. First visit asks name and company, and creates their project. |
+| Anyone (public home) | `youtube-studio.hoteltechinsider.com` | what we make, examples, one email box. A new email creates an account and lands on the order page; existing sponsors sign in here too. |
+| Client (sponsor) | `youtube-studio.hoteltechinsider.com/client-submission/youtube` | work email → 6-digit code. First visit asks name and company. With no project yet they land on the order page. |
 | HTR admin | `/admin` | `@hoteltechreport.com` email → code. Stays signed in 7 days. |
 | Editor | `/editor` | the one shared `EDITOR_PASSWORD` |
 
@@ -68,6 +68,44 @@ Each client project has three steps: sponsor dossier (a Google Doc link), brand 
 update with a comment; the client is emailed and the step goes back to them. When all three are
 approved the client gets an "all set" email. People from the same email domain join the same
 company; personal addresses (gmail etc.) get their own.
+
+### Ordering, discount codes and Stripe
+Signing in never creates a project. A project opens when an order is paid, or when HTR creates one in the admin.
+
+Someone with no project lands on `/client-submission/youtube/order`:
+
+- **Products and prices** are in `lib/pricing.js` and mirror the Help Center article: long form $15,000 Basic /
+  $10,000 Premium; short form $2,500 / $2,000 (minimum 4, 20% off 8 or more); social clip add-on $500 with a long
+  form video. Change a price there and in the Help Center together.
+- **Which price.** The app looks the buyer's verified email up on Hotel Tech Report (same connection as the
+  internal dossier): the HTR user with that email, or a vendor colleague on the same email domain, then that
+  company's membership plan. Paid plan = Premium price. No match = Basic price. Remembered per company for a day.
+- **Pay now** sends them to Stripe's hosted invoice page. **Request an invoice** also has Stripe email it. Both are
+  the same Stripe invoice, payable by whatever is switched on in Stripe under *Settings → Billing → Invoices →
+  Default payment methods* (card, ACH debit, bank transfer). Due in 30 days (`INVOICE_DAYS_UNTIL_DUE`). Nothing is
+  ever charged automatically, and the app also emails the buyer the invoice link itself.
+- **Paid.** Stripe calls `/api/webhook/stripe`; the app marks the order paid, opens one project per long form
+  video, emails the buyer their portal link and alerts HTR. Short form videos and social clips have no production
+  workflow in the app yet, so the paid alert says to kick those off by hand.
+- **Orders that wait for HTR** (no invoice goes out until you click *Send invoice* in `/admin/orders`): the HTR
+  membership lookup was unavailable; the company is on Market Leader and ordered a long form video (one is
+  included in their plan); Stripe is not connected or refused. You get an email each time.
+- **`/admin/orders`** lists every order with its invoice link, *Mark paid* (wire or cheque outside Stripe; closes
+  the Stripe invoice and opens the project) and *Cancel* (voids the invoice).
+- **Discount codes** are created on the same page: percent or dollars off, an optional expiry date (good through
+  the end of that day, Pacific), an optional maximum number of uses, and a note only HTR sees. A code comes off
+  after the short form volume discount. Codes can be switched off; a used code cannot be deleted. A 100% code
+  books the video with nothing to pay.
+- Billing reuses the Stripe customer HTR already has for a member company, so their invoices stay in one place.
+
+Setting it up (two environment variables, then redeploy):
+
+| Name | Value |
+|---|---|
+| `STRIPE_SECRET_KEY` | Stripe → Developers → API keys. A restricted key is enough: write access to Customers and Invoices. Use a `sk_test_…` key first; `/admin/orders` shows a test-mode banner |
+| `STRIPE_WEBHOOK_SECRET` | Stripe → Developers → Webhooks → Add endpoint, URL `https://youtube-studio.hoteltechinsider.com/api/webhook/stripe`, events `invoice.paid`, `invoice.payment_failed`, `invoice.voided`, `invoice.marked_uncollectible`; copy the signing secret (`whsec_…`) |
+
+Until `STRIPE_SECRET_KEY` is set, orders are still collected and wait in `/admin/orders`.
 
 ### Loading a project for a client yourself
 For a client who sent their materials another way (email, a shared drive) or before the portal existed,
