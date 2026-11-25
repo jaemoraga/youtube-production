@@ -33,7 +33,7 @@ export default function AdminOrders() {
       <h1>Orders</h1>
       <p className="sub">Every video ordered in the app. A project opens by itself when its invoice is paid.</p>
       {error && <div className="alert">{error}</div>}
-      {data && data.stripe === 'off' && <div className="alert">Stripe is not connected. Orders are collected here but no invoice goes out. Add STRIPE_SECRET_KEY in Vercel and redeploy.</div>}
+      {data && data.stripe === 'off' && <div className="alert">Stripe is not connected. Orders are collected here but no invoice goes out. {data.stripeProblem || 'Add STRIPE_SECRET_KEY in Vercel and redeploy.'}</div>}
       {data && data.stripe === 'test' && <div className="alert">Stripe is in test mode. Invoices are not real and no money moves.</div>}
       {data && data.stripe !== 'off' && !data.webhook && <div className="alert">STRIPE_WEBHOOK_SECRET is not set, so the app will not hear about payments. Until it is, use Mark paid.</div>}
       {data && <p className="muted small">Awaiting payment: <b>{usd(open)}</b> · Paid: <b>{usd(paid)}</b></p>}

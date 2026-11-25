@@ -119,3 +119,22 @@ test('Stripe webhook: accepts a correctly signed, recent event and nothing else'
   assert.equal(verifyWebhook(body, sig(body), '', now), null); // no secret configured: reject everything
   assert.equal(verifyWebhook(body, '', secret, now), null);
 });
+
+test('a pasted key with stray spaces, line breaks or quotes still works; a wrong value is described, not shown', async () => {
+  const S = await import('../lib/stripe.js');
+  const before = process.env.STRIPE_SECRET_KEY;
+  try {
+    process.env.STRIPE_SECRET_KEY = ' "rk_live_abc\n def" \n';
+    assert.equal(S.stripeReady(), true);
+    assert.equal(S.stripeMode(), 'live');
+    assert.equal(S.stripeKeyProblem(), null);
+    process.env.STRIPE_SECRET_KEY = 'whsec_supersecretvalue';
+    assert.equal(S.stripeReady(), false);
+    assert.equal(S.stripeKeyProblem(), 'STRIPE_SECRET_KEY is set but is not a Stripe key: 22 characters starting "whs". A Stripe key starts with rk_live_ or sk_live_.');
+    delete process.env.STRIPE_SECRET_KEY;
+    assert.match(S.stripeKeyProblem(), /not set/);
+  } finally { if (before === undefined) delete process.env.STRIPE_SECRET_KEY; else process.env.STRIPE_SECRET_KEY = before; }
+  const secret = 'whsec_x', body = '{"type":"invoice.paid"}', now = 1795000000000, t = Math.floor(now / 1000);
+  const sig = `t=${t},v1=${createHmac('sha256', secret).update(`${t}.${body}`).digest('hex')}`;
+  assert.equal(S.verifyWebhook(body, sig, ' whsec_x\n', now).type, 'invoice.paid');
+});
