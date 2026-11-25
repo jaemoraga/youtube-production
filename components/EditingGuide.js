@@ -34,7 +34,9 @@ export default function EditingGuide({ guide, paragraphs, parts, company, stale,
 
   const needle = q.trim().toLowerCase();
   const hit = (f) => !needle || [f.name, f.about, ...f.clips.flatMap((c) => [c.show, c.quote]), ...f.paragraphs.map((n) => paragraphs[n - 1])].join(' ').toLowerCase().includes(needle);
-  const shown = features.filter(hit);
+  // When searching, features whose name matches come first; otherwise script order.
+  const named = (f) => (needle && f.name.toLowerCase().includes(needle) ? 0 : 1);
+  const shown = features.filter(hit).sort((a, b) => named(a) - named(b));
   const current = shown.find((f) => f.id === open) || shown[0] || null;
   const at = current ? shown.indexOf(current) : -1;
   const clip = current ? current.clips[Math.min(clipAt, current.clips.length - 1)] : null;
@@ -43,7 +45,7 @@ export default function EditingGuide({ guide, paragraphs, parts, company, stale,
   const when = (c) => `${several ? `Part ${c.part + 1} at ` : ''}${c.exact ? '' : 'about '}${clock(c.start)}`;
   // The menu is grouped by the script section where each feature is first used.
   const groups = [];
-  shown.forEach((f) => { const g = sec.get(f.paragraphs[0]) || ''; if (!groups.length || groups[groups.length - 1].title !== g) groups.push({ title: g, items: [] }); groups[groups.length - 1].items.push(f); });
+  shown.forEach((f) => { const g = needle ? '' : sec.get(f.paragraphs[0]) || ''; if (!groups.length || groups[groups.length - 1].title !== g) groups.push({ title: g, items: [] }); groups[groups.length - 1].items.push(f); });
 
   const sections = [];
   paragraphs.forEach((p, i) => {
@@ -67,7 +69,7 @@ export default function EditingGuide({ guide, paragraphs, parts, company, stale,
       </ol>
       <div className="guide-searchbar">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
-        <input type="search" placeholder="Search for a feature: report, WhatsApp, phone, inbox…" value={q} onChange={(e) => { setQ(e.target.value); setTab('features'); }} aria-label="Search features" />
+        <input type="text" placeholder="Search for a feature: report, WhatsApp, phone, inbox…" value={q} onChange={(e) => { setQ(e.target.value); setTab('features'); }} aria-label="Search features" />
         {q && <button className="linkbtn" onClick={() => setQ('')}>Clear</button>}
       </div>
       {stale && <div className="callout" style={{ margin: '0 18px 12px' }}><b>This guide may be out of date.</b> {stale} Ask Hotel Tech Report to rebuild it.</div>}
