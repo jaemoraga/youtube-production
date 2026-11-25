@@ -1,11 +1,13 @@
 import { notFound } from 'next/navigation';
 import EditingGuide from '@/components/EditingGuide.js';
+import EditorProduction from '@/components/EditorProduction.js';
 import EditorTranscript from '@/components/EditorTranscript.js';
 import TopBar from '@/components/TopBar.js';
 import { bytesText } from '@/lib/format-bytes.js';
 import { partName, scriptParagraphs } from '@/lib/guide-shared.js';
 import { editorScript, getGuide, staleReason } from '@/lib/guide.js';
-import { getProject, videoParts } from '@/lib/projects.js';
+import { forRole, getProject, projectStatus, videoParts } from '@/lib/projects.js';
+import { STAGE } from '@/lib/stages.js';
 import { getScript } from '@/lib/script.js';
 import { requirePage } from '@/lib/session.js';
 import { syncJob } from '@/lib/jobs.js';
@@ -50,7 +52,8 @@ export default async function EditorProject({ params }) {
       <TopBar label="Editor" home="/editor" />
       <a className="linkbtn" href="/editor" style={{ marginLeft: -6 }}>← All projects</a>
       <h1 style={{ marginTop: 8 }}>{p.companyName}</h1>
-      <p className="sub">{p.name}</p>
+      <p className="sub">{p.name} · <b>{STAGE[projectStatus(p)].label}</b></p>
+      {p.footage?.url && <div className="callout"><b>Raw footage:</b> <a href={p.footage.url} target="_blank" rel="noreferrer">{p.footage.url}</a>{p.footage.note ? ` · ${p.footage.note}` : ''}</div>}
 
       <section className="card pad editor-steps">
         <div className="step-title">What is on this page</div>
@@ -59,6 +62,7 @@ export default async function EditorProject({ params }) {
           <li><a href="#brand-materials">Brand materials</a>: the client&apos;s logo, screenshots and anything else to use on screen.</li>
           <li><a href="#editing-guide">The editing guide</a>: the script, line by line, with the exact place in the demo that shows each thing.</li>
           <li><a href="#demo-transcript">The demo transcript</a>: everything said in the demo, with timestamps. It is not the script.</li>
+          <li><a href="#production">Production</a>: paste the raw footage link, then each Frame.io cut as it is ready. Pasting a cut sends it to the client.</li>
         </ol>
       </section>
 
@@ -114,6 +118,8 @@ export default async function EditorProject({ params }) {
       <h2 className="section-title" id="demo-transcript" style={{ marginTop: 32, marginBottom: 6 }}>Demo recording {several ? 'transcripts' : 'transcript'}</h2>
       <p className="muted small" style={{ margin: '0 0 16px' }}>What the client says while showing their product. <b>This is not the script</b> and it is not spoken in the finished video. It is here so you can find footage{guide ? ': the highlighted lines are the moments the script uses, and the bold lines mark where each topic starts' : ''}.</p>
       {!videos.length && <div className="card pad"><p className="muted small" style={{ margin: 0 }}>Available once the video is uploaded.</p></div>}
+      <EditorProduction initial={forRole(p, 'editor')} />
+      <h2 className="section-title" style={{ marginTop: 32, marginBottom: 6 }}>Reference</h2>
       {videos.map(({ job, t }, i) => (
         <div key={job.id} id={`demo-transcript-${i + 1}`} style={{ marginTop: i ? 16 : 0 }}>
           {t ? <EditorTranscript t={t} guide={guide} partIndex={i} heading={`Demo transcript · ${partName(names[i], i, videos.length)}`} job={{ title: job.title || null, filename: job.filename, companyName: p.companyName, speakerNames: job.speakerNames || {} }} />

@@ -1,6 +1,8 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
-import { projectStatus } from '@/lib/project-shared.js';
+import { materialsStage, projectStatus } from '@/lib/project-shared.js';
+import { STAGE, STAGES, activeWindow } from '@/lib/stages.js';
+import { ShotClock } from './Production.js';
 import { StatusPill } from './ProjectView.js';
 import { api, Brand, duration, useToast, when } from './ui.js';
 
@@ -171,35 +173,40 @@ function Projects({ projects, reload, say }) {
     try { setTrash((await api('/api/projects?trash=1')).projects); } catch (e) { say(e.message); }
   }, [say]);
   useEffect(() => { if (show === 'trash') loadTrash(); }, [show, loadTrash]);
-  const ORDER = { review: 0, internal: 1, waiting: 2, scripting: 3 };
+  // HTR's court first (something to do), then the client's and the editor's, then finished.
+  const COURT = { htr: 0, client: 1, editor: 2, done: 3 };
   const list = (projects || []).filter((p) => {
-    const st = projectStatus(p);
-    return show === 'all' || (show === 'scripting' ? st === 'scripting' : st !== 'scripting');
-  }).sort((a, b) => (ORDER[projectStatus(a)] ?? 9) - (ORDER[projectStatus(b)] ?? 9));
+    const st = STAGE[projectStatus(p)];
+    return show === 'all' ? st.key !== 'complete' : show === 'mine' ? st.court === 'htr' : show === 'client' ? st.court === 'client' : show === 'editor' ? st.court === 'editor' : show === 'complete' ? st.key === 'complete' : true;
+  }).sort((a, b) => { const x = STAGE[projectStatus(a)], y = STAGE[projectStatus(b)]; return (COURT[x.court] - COURT[y.court]) || (x.order - y.order); });
   return (
     <>
       <div className="row" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
         <h1>Client projects</h1>
         <select style={{ width: 'auto' }} value={show} onChange={(e) => setShow(e.target.value)}>
-          <option value="all">All projects</option><option value="open">In pre-production</option><option value="scripting">Ready for scripting</option><option value="trash">Trash</option>
+          <option value="all">Active projects</option><option value="mine">My turn (Hotel Tech Report)</option><option value="client">With the client</option><option value="editor">With the editor</option><option value="complete">Complete</option><option value="trash">Trash</option>
         </select>
       </div>
       <div className="card">
         {show === 'trash' ? <Trash items={trash} reload={async () => { await loadTrash(); await reload(); }} say={say} />
           : projects === null ? <div className="empty">Loading…</div> : list.length === 0 ? (
-          <div className="empty">{show === 'scripting' ? 'Nothing ready for scripting yet.' : show === 'open' ? 'No projects in pre-production.' : 'No projects yet. Clients sign up at /client-submission/youtube.'}</div>
+          <div className="empty">{show === 'mine' ? 'Nothing waiting on you.' : show === 'client' ? 'Nothing with a client.' : show === 'editor' ? 'Nothing with the editor.' : show === 'complete' ? 'No finished projects yet.' : 'No projects yet. Clients sign up at /client-submission/youtube.'}</div>
         ) : (
           <table>
-            <thead><tr><th>Company</th><th className="hide-sm">Project</th><th>Status</th><th className="hide-sm">Last activity</th></tr></thead>
+            <thead><tr><th>Company</th><th className="hide-sm">Project</th><th>Status</th><th className="hide-sm">Next</th><th className="hide-sm">Last activity</th></tr></thead>
             <tbody>
-              {list.map((p) => (
-                <tr key={p.id} className="click" onClick={() => { location.href = `/admin/projects/${p.id}`; }}>
-                  <td className="name">{p.companyName}</td>
-                  <td className="hide-sm muted">{p.name}</td>
-                  <td><StatusPill status={projectStatus(p)} /></td>
-                  <td className="hide-sm muted small">{when(p.updatedAt || p.createdAt)}</td>
-                </tr>
-              ))}
+              {list.map((p) => {
+                const st = projectStatus(p); const win = activeWindow(p); const m = materialsStage(p);
+                return (
+                  <tr key={p.id} className="click" onClick={() => { location.href = `/admin/projects/${p.id}`; }}>
+                    <td className="name">{p.companyName}</td>
+                    <td className="hide-sm muted">{p.name}</td>
+                    <td><StatusPill status={st} /></td>
+                    <td className="hide-sm small">{win ? <ShotClock window={win.window} label={win.key === 'script' ? 'send requests' : 'leave feedback'} compact /> : st === 'submitted' ? (m === 'scripting' ? 'Generate the script' : m === 'internal' ? 'Fill the internal dossier' : 'Approve the materials') : st === 'script-internal' ? 'Review and release the script' : st === 'script-revisions' ? 'Implement revisions, then lock' : st === 'shooting' ? 'Film, then attach footage' : st === 'editing' ? 'Editor cuts V1' : st === 'v1-revisions' ? 'Editor cuts V2' : st === 'final-revisions' ? 'Editor finishes' : ''}</td>
+                    <td className="hide-sm muted small">{when(p.updatedAt || p.createdAt)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

@@ -2,7 +2,10 @@
 // The project checklist. role="client": the sponsor completes items. role="admin": HTR reviews them.
 import { uploadPresigned } from '@vercel/blob/client';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { GROUP_HINT, INTERNAL_FIELDS, ITEM_LABEL, ITEMS, STATUS_TEXT, projectStatus, timeline, unlabeledParts, videoParts } from '@/lib/project-shared.js';
+import { GROUP_HINT, INTERNAL_FIELDS, ITEM_LABEL, ITEMS, STATUS_TEXT, materialsStage, projectStatus, timeline, unlabeledParts, videoParts } from '@/lib/project-shared.js';
+import { CLIENT_STAGE_TEXT, STAGE, activeWindow } from '@/lib/stages.js';
+import { ClientProduction, ShotClock, StaffProduction } from './Production.js';
+import Notifications from './Notifications.js';
 import { assetType, mediaType, safeName } from '@/lib/media.js';
 import { api, bytes, duration, useToast, when } from './ui.js';
 
@@ -13,8 +16,9 @@ const PREVIEW_MSG = 'Preview only: nothing is saved.';
 const fileUrl = (path) => `/api/files?p=${encodeURIComponent(path)}`;
 
 export function StatusPill({ status, forClient = false }) {
-  const text = forClient && status === 'waiting' ? 'Waiting on you' : forClient && status === 'review' ? 'In review' : STATUS_TEXT[status] || status;
-  return <span className={`pill st-${status}`}>{text}</span>;
+  const text = forClient ? CLIENT_STAGE_TEXT[status] || STATUS_TEXT[status] || status : STATUS_TEXT[status] || status;
+  const court = STAGE[status]?.court;
+  return <span className={`pill st-${status}${court ? ` court-${court}` : ''}`}>{text}</span>;
 }
 
 export default function ProjectView({ initial, role, templateUrl, jobs = [], htr = null, people = [], preview = false, script = null }) {
@@ -35,7 +39,9 @@ export default function ProjectView({ initial, role, templateUrl, jobs = [], htr
   const reload = async () => { if (preview) return; try { setP((await api(`/api/projects/${p.id}`)).project); } catch { /* ignore */ } };
 
   const status = projectStatus(p);
+  const materials = materialsStage(p);
   const done = ITEMS.filter((i) => ['submitted', 'approved'].includes(p.items[i].status)).length;
+  const win = activeWindow(p);
 
   return (
     <Preview.Provider value={preview}>
@@ -45,15 +51,17 @@ export default function ProjectView({ initial, role, templateUrl, jobs = [], htr
           <h1>{admin ? p.companyName : p.name}</h1>
           <p className="sub">
             {admin ? <>{p.name} · </> : null}
-            {status === 'scripting' ? 'Client checklist approved and internal dossier complete. Ready for scripting.'
-              : status === 'internal' ? 'Client checklist approved. Complete the internal dossier below to move to scripting.'
-              : status === 'approved' ? 'Everything is approved. Thank you!'
-              : status === 'review' ? (admin ? 'Everything is in. Ready for your review.' : 'All submitted. We’re reviewing and will reach out if we need anything.')
+            {status !== 'waiting' && status !== 'submitted' ? (admin ? STAGE[status].label : CLIENT_STAGE_TEXT[status])
+              : materials === 'scripting' ? 'Client checklist approved and internal dossier complete. Ready for scripting.'
+              : materials === 'internal' ? 'Client checklist approved. Complete the internal dossier below to move to scripting.'
+              : materials === 'approved' ? 'Everything is approved. Thank you!'
+              : materials === 'review' ? (admin ? 'Everything is in. Ready for your review.' : 'All submitted. We’re reviewing and will reach out if we need anything.')
               : admin ? `Waiting on the client: ${done} of 3 submitted.` : `${done} of 3 done. Complete each step below.`}
           </p>
         </div>
         <span style={{ flex: 'none', marginTop: 8 }}><StatusPill status={status} forClient={!admin} /></span>
       </div>
+      {!admin && win && <ShotClock window={win.window} label={win.key === 'script' ? 'send your script edit requests' : win.key === 'v1' ? 'leave feedback on the first cut' : 'leave your final feedback'} />}
 
       {admin && <Overview p={p} jobs={jobs} htrEnabled={htrEnabled} />}
       {admin && (
@@ -63,7 +71,7 @@ export default function ProjectView({ initial, role, templateUrl, jobs = [], htr
         </div>
       )}
       {admin && <h2 className="section-title" style={{ marginTop: 32 }}>Client checklist</h2>}
-      {admin && status === 'waiting' && <p className="muted small" style={{ marginTop: -6 }}>The client normally completes these. If they sent materials another way, add them here yourself or mark a step as received outside the app. Nothing you add here emails the client.</p>}
+      {admin && materials === 'waiting' && <p className="muted small" style={{ marginTop: -6 }}>The client normally completes these. If they sent materials another way, add them here yourself or mark a step as received outside the app. Nothing you add here emails the client.</p>}
 
       <div className="steps">
         <Item n={1} item="dossier" p={p} admin={admin} act={act}>
@@ -82,25 +90,28 @@ export default function ProjectView({ initial, role, templateUrl, jobs = [], htr
             <span className={`num ${script.approvedAt ? 'st-approved' : 'st-submitted'}`}>{script.approvedAt ? '✓' : 4}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="step-title">Your script</div>
-              <div className="muted small">{script.approvedAt ? 'Approved. Locked for filming.' : 'Ready for your review. Leave comments on any paragraph, or approve it.'}</div>
+              <div className="muted small">{script.approvedAt || p.script?.lockedAt ? 'Locked for filming.' : p.script?.requestsAt ? 'Your edit requests are in. We are working them into the script.' : p.script?.window && !win ? 'The review window has closed.' : 'Ready for your review. Leave comments on any paragraph, or approve it.'}</div>
             </div>
-            <a className="btn primary" href={preview ? undefined : `/client-submission/youtube/p/${p.id}/script`}>{script.approvedAt ? 'Open script' : 'Review script'}</a>
+            <a className="btn primary" href={preview ? undefined : `/client-submission/youtube/p/${p.id}/script`}>{script.approvedAt || p.script?.lockedAt || p.script?.requestsAt ? 'Open script' : 'Review script'}</a>
           </header>
         </section>
       )}
+      {!admin && <ClientProduction p={p} act={act} preview={preview} />}
       {admin && <InternalDossier p={p} act={act} htr={htr} say={say} />}
       {admin && (
         <section className="card pad script-entry" id="script">
           <div>
             <div className="step-title">Script</div>
-            <div className="muted small">{script?.line || (status === 'scripting'
+            <div className="muted small">{script?.line || (materials === 'scripting'
               ? 'Everything is in. Generate the script from the two dossiers and the demo transcript.'
               : 'The app writes the script once the checklist and the internal dossier are done. A script that was written somewhere else can be imported at any time.')}</div>
           </div>
-          <a className={`btn${script || status === 'scripting' ? ' primary' : ''}`} href={`/admin/projects/${p.id}/script`}>{script ? 'Open script' : status === 'scripting' ? 'Generate script' : 'Import a script'}</a>
+          <a className={`btn${script || materials === 'scripting' ? ' primary' : ''}`} href={`/admin/projects/${p.id}/script`}>{script ? 'Open script' : materials === 'scripting' ? 'Generate script' : 'Import a script'}</a>
         </section>
       )}
       {admin && <GuideCard p={p} hasScript={!!script} say={say} />}
+      {admin && <StaffProduction p={p} act={act} role="admin" />}
+      {admin && <Notifications projectId={p.id} />}
       {admin && (
         <div className="trash-row">
           <button className="btn danger" onClick={async () => {

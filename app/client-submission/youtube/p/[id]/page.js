@@ -3,6 +3,7 @@ import ProjectView from '@/components/ProjectView.js';
 import TopBar from '@/components/TopBar.js';
 import { DOSSIER_TEMPLATE_URL } from '@/lib/config.js';
 import { forRole, getProject, listProjects } from '@/lib/projects.js';
+import { recordVisit } from '@/lib/notifications.js';
 import { forClient, getScript } from '@/lib/script.js';
 import { requirePage } from '@/lib/session.js';
 
@@ -15,6 +16,7 @@ export default async function ClientProject({ params }) {
   const p = await getProject(id);
   if (!p || p.company !== s.c) notFound();
   const sc = forClient(await getScript(p.id));
+  await recordVisit(p.id, { email: s.e, page: 'project page' }).catch(() => null);
   const several = (await listProjects({ company: s.c })).length > 1;
   return (
     <div className="wrap narrow">

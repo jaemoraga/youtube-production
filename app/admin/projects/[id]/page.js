@@ -3,6 +3,7 @@ import ProjectView from '@/components/ProjectView.js';
 import { Brand } from '@/components/ui.js';
 import { htrStatus } from '@/lib/htr.js';
 import { syncJob } from '@/lib/jobs.js';
+import { syncScriptStamps } from '@/lib/production.js';
 import { forRole, getProject, videoParts } from '@/lib/projects.js';
 import { getScript } from '@/lib/script.js';
 import { requirePage } from '@/lib/session.js';
@@ -16,7 +17,7 @@ const dur = (s) => { s = Math.round(s || 0); const h = Math.floor(s / 3600), m =
 export default async function AdminProject({ params }) {
   await requirePage('admin');
   const { id } = await params;
-  const p = await getProject(id);
+  let p = await getProject(id);
   if (!p) notFound();
 
   // One entry per video file (a demo can come in several parts).
@@ -39,6 +40,7 @@ export default async function AdminProject({ params }) {
   }));
 
   const sc = await getScript(p.id);
+  p = await syncScriptStamps(p, sc, { role: 'admin', email: null, name: 'Hotel Tech Report' }).catch(() => p);
   const open = (sc?.comments || []).filter((c) => c.status === 'open').length;
   const held = (sc?.comments || []).filter((c) => c.status === 'needs-decision').length;
   const drafted = (sc?.comments || []).filter((c) => c.status === 'drafted').length;

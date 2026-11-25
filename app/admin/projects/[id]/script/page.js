@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import ScriptView from '@/components/ScriptView.js';
 import { Brand } from '@/components/ui.js';
+import { syncScriptStamps } from '@/lib/production.js';
 import { getProject } from '@/lib/projects.js';
 import { AI_READY, PROVIDER, SCRIPT_MODEL, forAdmin, getScript, readiness, suggestWebsite } from '@/lib/script.js';
 import { requirePage } from '@/lib/session.js';
@@ -11,9 +12,10 @@ export const metadata = { title: 'Script · Hotel Tech Report' };
 export default async function AdminScript({ params }) {
   await requirePage('admin');
   const { id } = await params;
-  const p = await getProject(id);
+  let p = await getProject(id);
   if (!p) notFound();
   const script = await getScript(p.id);
+  p = await syncScriptStamps(p, script, { role: 'admin', email: null, name: 'Hotel Tech Report' }).catch(() => p);
   const blocker = script ? null : await readiness(p);
   const product = script?.product || p.internal?.htr?.name || p.companyName;
   return (
@@ -23,7 +25,7 @@ export default async function AdminScript({ params }) {
       <p className="sub">{p.name}</p>
       <ScriptView projectId={p.id} role="admin" initial={forAdmin(script)} ai={{ ready: AI_READY(), model: SCRIPT_MODEL(), provider: PROVIDER() }}
         project={{ product, fileStem: p.companyName, ready: !blocker, blocker }}
-        suggestedWebsite={script || blocker ? '' : await suggestWebsite(p)} />
+        suggestedWebsite={script || blocker ? '' : await suggestWebsite(p)} window={p.script?.window ? { deadline: p.script.window.deadline, closedAt: p.script.window.closedAt } : null} />
     </div>
   );
 }

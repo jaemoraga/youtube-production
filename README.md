@@ -101,6 +101,47 @@ After a person is added, messages, update requests and script shares email them 
 - **Demo transcript**, labelled as the client's recording and not the script, with the moments the script uses
   highlighted and linked back to the script line.
 
+### The ladder, the shot clocks and the audit trail
+Every project is at one of twelve stages, each naming who has the ball. The dashboard sorts by whose turn it is
+(*My turn*, *With the client*, *With the editor*).
+
+| Stage | Court | Enters when |
+|---|---|---|
+| Waiting for client materials | client | sign-up, or an update was requested |
+| Materials submitted | HTR | everything is in (HTR approves the steps and completes the internal dossier) |
+| Script draft, internal | HTR | the script is written or imported; the client cannot see it |
+| Script review, client | client | HTR approves the script for the client. **7-day window**, reminders at 5, 3 and 1 days |
+| Script revisions | HTR | the client sends edit requests, or the window closes |
+| Shooting | HTR | HTR clicks *Revisions implemented: lock the script* (or the client approved it) |
+| Editing | editor | the raw footage link is attached (HTR and editor only; the client never sees it) |
+| V1 review, client | client | a Frame.io link is pasted. **7-day window**, reminders at 5, 3 and 1 days |
+| V1 revisions | editor | the client clicks *My feedback is complete*, or the window closes |
+| V2 review, client | client | the V2 Frame.io link is pasted. **3-day window**, reminders at 1 day and 12 hours |
+| Final revisions | editor | the client marks their final feedback complete, or the window closes |
+| Complete | done | the editor or HTR marks it complete |
+
+- A window that closes on the clock moves the project along with whatever feedback came in, and emails the
+  client and whoever is next. The client's comment and feedback buttons stop working once it has closed.
+- **More time.** On the project page, *Give them more time* moves a deadline by any number of days. The client's
+  shot clock shows the new date and nothing else; no "we extended" email goes out unless you tick the box, and
+  then it reads like an ordinary reminder. Extensions are logged in the timeline for HTR only.
+- **Close the window now** ends a round early when the client has told you by email that they are done.
+- **Audit trail.** *Notifications and visits* on each project page lists every email the app sent the client
+  with what Resend reported (delivered, opened, clicked, bounced), and every client sign-in and page view the
+  app recorded. Sign-ins and page views are the firm evidence; opens and clicks can be triggered by mail apps
+  and security scanners.
+
+Setting it up (three more environment variables, then redeploy):
+
+| Name | Value |
+|---|---|
+| `CRON_SECRET` | any long random string. Vercel sends it with each cron call. The clock runs hourly (`vercel.json`); on the Hobby plan Vercel only runs crons daily, so the 12-hour warning becomes a same-day one |
+| `RESEND_WEBHOOK_SECRET` | in Resend: **Webhooks → Add endpoint**, URL `https://youtube-studio.hoteltechinsider.com/api/webhook/resend`, events `email.delivered`, `email.opened`, `email.clicked`, `email.bounced`, `email.complained`; copy the signing secret (`whsec_…`) |
+| `EDITOR_EMAILS` | who is emailed when footage, feedback or a closed window is waiting on the editor, comma-separated (HTR is always copied) |
+
+Also in Resend: **Domains → your domain → turn on Open tracking and Click tracking**. Without them the trail
+shows delivered only. An admin can run the clock by hand by opening `/api/cron/clock` while signed in.
+
 ### Setting it up
 1. **Email (Resend).** Create an account at https://resend.com, add the domain you send from
    (e.g. `hoteltechreport.com` or `mail.hoteltechreport.com`), add the DNS records it shows, and

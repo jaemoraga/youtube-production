@@ -2,6 +2,8 @@
 // The script screen. role="admin": generate, read, edit, approve for the client, implement revisions.
 // role="client": read the approved script, comment on any paragraph, send feedback or approve.
 import { useEffect, useRef, useState } from 'react';
+import { windowOpen } from '@/lib/stages.js';
+import { ShotClock } from './Production.js';
 import { api, download, useToast } from './ui.js';
 
 const HEADING = /^\[[A-Z][A-Z &/\-]{2,40}\]$/;
@@ -18,9 +20,10 @@ const STATUS = {
   drafted: ['Drafted, not sent to the client', 'st-changes'],
 };
 
-export default function ScriptView({ projectId, project, role, initial, ai = null, suggestedWebsite = '' }) {
+export default function ScriptView({ projectId, project, role, initial, ai = null, suggestedWebsite = '', window: initialWindow = null }) {
   const admin = role === 'admin';
   const [script, setScript] = useState(initial);
+  const [win, setWin] = useState(initialWindow);
   const [toast, say] = useToast();
   const [busy, setBusy] = useState('');
   const [problem, setProblem] = useState('');
@@ -31,6 +34,7 @@ export default function ScriptView({ projectId, project, role, initial, ai = nul
     try {
       const d = await api(url, { method: 'POST', body });
       setScript(d.script);
+      if (d.window !== undefined) setWin(d.window);
       if (ok) say(typeof ok === 'function' ? ok(d) : ok);
       return d;
     } catch (e) { setProblem(e.message); return null; }
@@ -93,8 +97,8 @@ export default function ScriptView({ projectId, project, role, initial, ai = nul
   return (
     <div className="script-stack">
       {admin
-        ? <AdminScript {...{ script, project, ai, busy, setBusy, post, writeAll, say, suggestedWebsite, projectId, note }} />
-        : <ClientScript {...{ script, project, busy, setBusy, post, say }} />}
+        ? <AdminScript {...{ script, project, ai, busy, setBusy, post, writeAll, say, suggestedWebsite, projectId, note, win }} />
+        : <ClientScript {...{ script, project, busy, setBusy, post, say, win }} />}
       {problem && <div className="callout script-problem"><b>That didn&apos;t work.</b> {problem}</div>}
       {toast}
     </div>
@@ -102,7 +106,7 @@ export default function ScriptView({ projectId, project, role, initial, ai = nul
 }
 
 // ---------------------------------------------------------------- admin
-function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, suggestedWebsite, projectId, note }) {
+function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, suggestedWebsite, projectId, note, win }) {
   const [website, setWebsite] = useState(suggestedWebsite);
   const [productName, setProductName] = useState(project.product || '');
   const [editing, setEditing] = useState(null);
@@ -207,6 +211,7 @@ function AdminScript({ script, project, ai, busy, setBusy, post, writeAll, say, 
             <div className="row">
               {(!sharedV || sharedV < v.n || drafted.length > 0) && <button className="btn ok" disabled={!!busy} onClick={() => run('share', { type: 'share' }, 'Shared. The client was emailed.')}>{drafted.length ? 'Approve and send revisions to client' : sharedV ? `Show version ${v.n} to the client` : 'Approve and show to client'}</button>}
               {sharedV && !script.client?.approvedAt && <button className="linkbtn" disabled={!!busy} onClick={() => run('unshare', { type: 'unshare' }, 'Hidden from the client')}>Hide from client</button>}
+              {sharedV && win && <ShotClock window={win} label="send edit requests" compact />}
               {!sharedV && !script.client?.approvedAt && <button className="btn" disabled={!!busy || !ai?.ready} title="Write the whole script again with the current process. The current one is archived." onClick={regenerate}>{busy === 'regenerate' ? 'Starting…' : 'Regenerate script'}</button>}
             </div>
           </section>
@@ -453,19 +458,25 @@ function Earlier({ comments, version, admin }) {
 }
 
 // ---------------------------------------------------------------- client
-function ClientScript({ script, project, busy, setBusy, post, say }) {
+function ClientScript({ script, project, busy, setBusy, post, say, win }) {
   const [general, setGeneral] = useState('');
   if (!script) return <section className="card pad"><div className="step-title">Your script isn&apos;t ready yet</div><p className="muted small" style={{ margin: 0 }}>We&apos;ll email you as soon as it is.</p></section>;
   const run = async (key, body, ok) => { setBusy(key); const d = await post(body, ok); setBusy(''); return d; };
-  const locked = !!script.approvedAt;
+  // Locked once approved, once the project locked it, or once the review window has closed.
+  const closed = !!win && !windowOpen(win);
+  const locked = !!script.approvedAt || !!project.lockedAt || closed;
   const open = script.comments.filter((c) => c.status === 'open' && c.version === script.version);
   return (
     <>
       <h1>{project.product} review script</h1>
       <p className="sub">
-        {locked ? <>You approved this script on <When at={script.approvedAt} />. It&apos;s locked for filming.</>
-          : 'Read it through, then click Comment under any paragraph you would like changed. Highlight a phrase first to point at it exactly. When you are done, send your feedback, or approve the script if it is good to film.'}
+        {script.approvedAt ? <>You approved this script on <When at={script.approvedAt} />. It&apos;s locked for filming.</>
+          : project.lockedAt ? 'Your edit requests have been worked in and the script is locked for filming.'
+            : closed ? 'The review window for this script has closed. We are moving ahead with the script as it stands.'
+              : script.submittedAt ? 'Your edit requests are in. We are working them into the script and will reply to each one.'
+                : 'Read it through, then click Comment under any paragraph you would like changed. Highlight a phrase first to point at it exactly. When you are done, send your feedback, or approve the script if it is good to film.'}
       </p>
+      {!locked && win && <ShotClock window={win} label="send your script edit requests" />}
       {!locked && (
         <section className="card pad script-share on">
           <div className="muted small">
@@ -473,7 +484,7 @@ function ClientScript({ script, project, busy, setBusy, post, say }) {
               : open.length ? `${open.length} ${open.length === 1 ? 'comment' : 'comments'} ready to send.` : 'No comments yet.'}
           </div>
           <div className="row">
-            <button className="btn primary" disabled={!!busy || !open.length || !!script.submittedAt} onClick={() => run('submit', { type: 'submit' }, 'Feedback sent')}>Send feedback</button>
+            <button className="btn primary" disabled={!!busy || !open.length || !!script.submittedAt} onClick={() => window.confirm('Send your edit requests? This ends your review window; we will work them into the script.') && run('submit', { type: 'submit' }, 'Feedback sent')}>Send edit requests</button>
             <button className="btn ok" disabled={!!busy || open.length > 0} title={open.length ? 'Send or remove your comments first' : ''} onClick={() => window.confirm('Approve this script for filming? You won\'t be able to comment afterwards.') && run('approve', { type: 'approve' }, 'Script approved. Thank you!')}>Approve script</button>
           </div>
         </section>

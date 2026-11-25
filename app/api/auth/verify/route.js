@@ -5,6 +5,7 @@ import { getCompanies } from '@/lib/store.js';
 import { checkCode, normEmail } from '@/lib/codes.js';
 import { createProject, listProjects } from '@/lib/projects.js';
 import { startSession } from '@/lib/session.js';
+import { recordVisit } from '@/lib/notifications.js';
 import { getMember, registerUser, touchLogin } from '@/lib/users.js';
 
 const MESSAGES = { wrong: 'That code is not right.', expired: 'That code has expired. Request a new one.', locked: 'Too many wrong tries. Request a new code.' };
@@ -30,7 +31,9 @@ export async function POST(request) {
     await createProject(user.company, null, { role: 'client', email, name: `${user.first} ${user.last}`.trim() });
   }
   await touchLogin(user);
-  const [project] = await listProjects({ company: user.company });
+  const projects = await listProjects({ company: user.company });
+  const [project] = projects;
+  for (const pr of projects) await recordVisit(pr.id, { email, page: 'signed in' }).catch(() => null);
   after(async () => {
     const company = (await getCompanies()).find((c) => c.slug === user.company)?.name || user.company;
     const name = `${user.first} ${user.last}`.trim();

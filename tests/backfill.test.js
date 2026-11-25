@@ -1,7 +1,7 @@
 // Loading a project for a client who sent materials before the app existed.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clientTookPart, projectStatus, timeline, videoParts } from '../lib/project-shared.js';
+import { clientTookPart, materialsStage, projectStatus, timeline, videoParts } from '../lib/project-shared.js';
 
 const project = (items) => ({ items: { dossier: { status: 'todo' }, assets: { status: 'todo', files: [] }, video: { status: 'todo' }, ...items } });
 
@@ -23,8 +23,9 @@ test('clientTookPart is false only when HTR supplied every step', () => {
 
 test('steps received outside the app count as approved', () => {
   const p = project({ dossier: { status: 'approved', external: true }, assets: { status: 'approved', files: [] }, video: { status: 'approved', external: true } });
-  assert.equal(projectStatus({ ...p, internal: {} }), 'internal');
-  assert.equal(projectStatus({ ...p, internal: { completedAt: 'x' } }), 'scripting');
+  assert.equal(materialsStage({ ...p, internal: {} }), 'internal');
+  assert.equal(materialsStage({ ...p, internal: { completedAt: 'x' } }), 'scripting');
+  assert.equal(projectStatus({ ...p, internal: {} }), 'submitted');
 });
 
 test('timeline lists every video part and words admin additions honestly', () => {
