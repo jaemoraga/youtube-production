@@ -3,12 +3,13 @@ import { getCompanies, saveCompanies } from '@/lib/store.js';
 import { newToken, parseTerms } from '@/lib/companies.js';
 import { normEmail, validEmail } from '@/lib/codes.js';
 import { addClientContact, removeClientContact } from '@/lib/users.js';
+import { channelUrl, resolveChannelId } from '@/lib/youtube.js';
 
 export async function PATCH(request, { params }) {
   const denied = await guardAdmin(request);
   if (denied) return denied;
   const { slug } = await params;
-  const { name, keyterms, newLink, addContact, removeContact } = await request.json().catch(() => ({}));
+  const { name, keyterms, newLink, addContact, removeContact, youtube } = await request.json().catch(() => ({}));
   // People: added without any email going out. Handled on their own so nothing else changes by accident.
   if (addContact || removeContact) {
     try {
@@ -30,6 +31,16 @@ export async function PATCH(request, { params }) {
   if (name !== undefined && String(name).trim()) c.name = String(name).trim().slice(0, 100);
   if (keyterms !== undefined) c.keyterms = parseTerms(keyterms);
   if (newLink) c.token = newToken(); // the old link stops working immediately
+  // The vendor's YouTube channel, for the editor's footage feed. Checked now so a wrong address is caught here.
+  if (youtube !== undefined) {
+    if (!String(youtube).trim()) { delete c.youtube; delete c.youtubeChannelId; }
+    else {
+      const url = channelUrl(youtube);
+      if (!url) return Response.json({ error: 'That is not a YouTube channel address. Use something like youtube.com/@name.' }, { status: 400 });
+      try { c.youtubeChannelId = await resolveChannelId(url); c.youtube = url; }
+      catch (e) { return Response.json({ error: e.message }, { status: 400 }); }
+    }
+  }
   await saveCompanies(companies);
   return Response.json({ company: c });
 }

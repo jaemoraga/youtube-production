@@ -21,7 +21,7 @@ export function StatusPill({ status, forClient = false }) {
   return <span className={`pill st-${status}${court ? ` court-${court}` : ''}`}>{text}</span>;
 }
 
-export default function ProjectView({ initial, role, templateUrl, jobs = [], htr = null, people = [], preview = false, script = null }) {
+export default function ProjectView({ initial, role, templateUrl, jobs = [], htr = null, people = [], preview = false, script = null, youtube = '' }) {
   const htrEnabled = !!htr?.connected;
   const [p, setP] = useState(initial);
   const [toast, say] = useToast();
@@ -110,6 +110,7 @@ export default function ProjectView({ initial, role, templateUrl, jobs = [], htr
         </section>
       )}
       {admin && <GuideCard p={p} hasScript={!!script} say={say} />}
+      {admin && <YouTubeCard p={p} initial={youtube} say={say} />}
       {admin && <StaffProduction p={p} act={act} role="admin" />}
       {admin && <Notifications projectId={p.id} />}
       {admin && (
@@ -585,6 +586,31 @@ function HtrPull({ p, htr, src, say, onPulled }) {
 }
 
 // ---------- admin-only panels ----------
+// The vendor's YouTube channel. The editor page lists its recent videos as a place to look for extra footage.
+function YouTubeCard({ p, initial, say }) {
+  const [saved, setSaved] = useState(initial);
+  const [v, setV] = useState(initial);
+  const [busy, setBusy] = useState(false);
+  const save = async (e) => {
+    e.preventDefault(); setBusy(true);
+    try {
+      const d = await api(`/api/companies/${p.company}`, { method: 'PATCH', body: { youtube: v } });
+      setSaved(d.company.youtube || ''); setV(d.company.youtube || ''); say(d.company.youtube ? 'YouTube channel saved' : 'YouTube channel removed');
+    } catch (err) { say(err.message); }
+    setBusy(false);
+  };
+  return (
+    <section className="card pad" id="youtube-channel" style={{ marginTop: 16 }}>
+      <div className="step-title">{p.companyName}&apos;s YouTube channel <span className="htr-only">For the editor</span></div>
+      <p className="muted small" style={{ marginTop: 0 }}>The editor page shows this channel&apos;s latest videos, so the editor can look for extra footage beyond the demo recording. Saved for the company, so it applies to all of its projects.</p>
+      <form className="row" style={{ flexWrap: 'nowrap' }} onSubmit={save}>
+        <input type="text" placeholder="https://www.youtube.com/@company" value={v} onChange={(e) => setV(e.target.value)} />
+        <button className="btn" disabled={busy || v.trim() === saved}>{busy ? 'Checking…' : 'Save'}</button>
+      </form>
+    </section>
+  );
+}
+
 // The editing guide maps each script paragraph to the moment in the demo recording that shows it.
 function GuideCard({ p, hasScript, say }) {
   const [d, setD] = useState(null);
@@ -604,9 +630,9 @@ function GuideCard({ p, hasScript, say }) {
         <div className="step-title">Editing guide <span className="htr-only">For the editor</span></div>
         <div className="muted small">
           {busy ? 'Reading the script and the demo transcript. This takes one to three minutes; keep this page open.'
-            : g ? <>Built {when(g.builtAt)} from script version {g.scriptVersion}: {g.demo} script {g.demo === 1 ? 'paragraph is' : 'paragraphs are'} matched to {g.clips} {g.clips === 1 ? 'moment' : 'moments'} in the demo{g.approximate ? ` (${g.approximate} approximate)` : ''}, {g.host} on camera, {g.other} with no demo footage.{d.stale ? <> <b>Out of date.</b> {d.stale}</> : null}</>
+            : g ? <>Built {when(g.builtAt)} from script version {g.scriptVersion}: {g.features || 0} {g.features === 1 ? 'feature' : 'features'} located in the demo ({g.clips} {g.clips === 1 ? 'moment' : 'moments'}{g.approximate ? `, ${g.approximate} approximate` : ''}) covering {g.demo} script {g.demo === 1 ? 'line' : 'lines'}; {g.host} on camera, {g.other} with no demo footage.{d.stale ? <> <b>Out of date.</b> {d.stale}</> : null}</>
               : d?.blocker ? d.blocker
-                : 'Matches each part of the script to the moment in the demo recording that shows it, in plain language, so the editor needs no product knowledge.'}
+                : 'Lists each feature the script talks about with the exact time to find it in the demo recording and the script line it belongs to, in plain language, so the editor needs no product knowledge.'}
           {problem ? <><br /><b>That didn&apos;t work.</b> {problem}</> : null}
         </div>
       </div>

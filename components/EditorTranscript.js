@@ -48,7 +48,7 @@ export default function EditorTranscript({ t, job, guide = null, partIndex = 0, 
                   <p>{k > 0 && p.start != null && <time className="pts">{clock(p.start)}</time>}{p.text}</p>
                   {used.length > 0 && (
                     <div className="used-by">
-                      {used.map((u) => <a key={u.id} id={u.id} href={`#s-${u.paragraph}`}>Used for script {u.paragraph}{u.topic ? `: ${u.topic}` : ''} · {clock(u.start)}</a>)}
+                      {used.map((u) => <a key={u.id} id={u.id} href={`#${u.feature}`}>{u.name} starts here · {clock(u.start)}</a>)}
                     </div>
                   )}
                 </div>
