@@ -96,7 +96,9 @@ Someone with no project lands on `/client-submission/youtube/order`:
   the end of that day, Pacific), an optional maximum number of uses, and a note only HTR sees. A code comes off
   after the short form volume discount. Codes can be switched off; a used code cannot be deleted. A 100% code
   books the video with nothing to pay.
-- Billing reuses the Stripe customer HTR already has for a member company, so their invoices stay in one place.
+- The app creates its own Stripe customers (marked `app: youtube-studio`), separate from the ones the Hotel Tech
+  Report platform bills. To put video invoices on a member's existing HTR customer instead, set
+  `STRIPE_REUSE_HTR_CUSTOMER=true`, but only once the platform's own Stripe webhook is known to ignore them.
 
 Setting it up (two environment variables, then redeploy):
 

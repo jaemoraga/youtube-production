@@ -25,6 +25,8 @@ mock.module('../lib/htr.js', { namedExports: { htrStatus: async () => ({ connect
 
 // Stripe + Resend over fetch.
 const stripeCalls = [], emails = [];
+let lastVersion = null;
+const init_version = () => lastVersion;
 let stripeFails = false;
 const invoices = new Map();
 globalThis.fetch = async (url, init = {}) => {
@@ -34,9 +36,11 @@ globalThis.fetch = async (url, init = {}) => {
   if (!u.startsWith('https://api.stripe.com/v1/')) throw new Error(`unexpected fetch ${u}`);
   const path = u.slice('https://api.stripe.com/v1/'.length), form = Object.fromEntries(new URLSearchParams(init.body || ''));
   stripeCalls.push([init.method, path, form]);
+  lastVersion = init.headers['stripe-version'];
   if (stripeFails) return json({ error: { message: 'card network down' } }, 500);
-  if (path === 'customers/cus_htr') return json({ id: 'cus_htr' });
-  if (path.startsWith('customers?')) return json({ data: [] });
+  if (path === 'customers/cus_htr') return json({ id: 'cus_htr', metadata: {} });
+  if (path === 'customers/cus_new') return json({ id: 'cus_new', metadata: { app: 'youtube-studio' } });
+  if (path.startsWith('customers?')) return json({ data: [{ id: 'cus_platform', metadata: {} }] });
   if (path === 'customers') return json({ id: 'cus_new' });
   if (path === 'invoices') { const inv = { id: `in_${invoices.size + 1}`, status: 'draft', total: 0, metadata: { order: form['metadata[order]'] } }; invoices.set(inv.id, inv); return json(inv); }
   if (path === 'invoiceitems') { invoices.get(form.invoice).total += Number(form.amount); return json({ id: 'ii' }); }
@@ -63,12 +67,13 @@ const reset = async () => {
 };
 const to = (e) => e.to.join(',');
 
-test('request an invoice: Premium price, HTR\'s Stripe customer, Stripe sends it, no project until paid', async () => {
+test('request an invoice: Premium price, its own Stripe customer, Stripe sends it, no project until paid', async () => {
   await reset();
   const o = await O.placeOrder({ user, items: { long: 1, clips: 1 }, mode: 'invoice', po: 'PO-7', billingEmail: 'ap@acme.com' });
   assert.equal(o.status, 'invoiced');
   assert.equal(o.total, 1050000);
-  assert.equal(o.stripeCustomer, 'cus_htr');
+  assert.equal(o.stripeCustomer, 'cus_new'); // never the customer the HTR platform bills, nor one found by email that isn't ours
+  assert.equal(stripeCalls.every(([, , , ]) => true) && init_version(), '2024-06-20');
   const inv = invoices.get(o.invoice.id);
   assert.equal(inv.total, 1050000);
   assert.equal(inv.sent, true);
@@ -193,4 +198,13 @@ test('short form only: paid, no project, HTR told there is no workflow', async (
   await O.onInvoiceEvent('invoice.paid', { id: o.invoice.id, metadata: { order: o.id } });
   assert.equal((await listProjects({ company: 'acme' })).length, 0);
   assert.ok(emails.some((e) => /^PAID:/.test(e.subject) && e.text.includes('no production workflow')));
+});
+
+test('STRIPE_REUSE_HTR_CUSTOMER=true bills the member\'s existing HTR customer', async () => {
+  await reset();
+  process.env.STRIPE_REUSE_HTR_CUSTOMER = 'true';
+  try {
+    const o = await O.placeOrder({ user, items: { long: 1 }, mode: 'invoice', billingEmail: user.email });
+    assert.equal(o.stripeCustomer, 'cus_htr');
+  } finally { delete process.env.STRIPE_REUSE_HTR_CUSTOMER; }
 });
