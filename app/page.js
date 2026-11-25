@@ -1,6 +1,6 @@
 // Public home page. Anyone who hasn't bought a video lands here: what we make, how it works,
-// examples, and one email box. A new email becomes a lead (account, no project) and alerts HTR;
-// an existing sponsor uses the same box to sign in to their portal.
+// examples, and one email box. A new email creates an account and lands on the order page (pay now
+// or request an invoice); an existing sponsor uses the same box to sign in to their portal.
 import { redirect } from 'next/navigation';
 import CodeLogin from '@/components/CodeLogin.js';
 import { STEPS, VideoExamples } from '@/components/VideoExamples.js';
@@ -49,8 +49,8 @@ export default async function Home() {
 
         <aside className="signin-col">
           <div className="card pad signin">
-            <CodeLogin as="client" intent="interest" embedded heading="Interested in a review video?"
-              sub="Enter your work email and our team will be in touch. Already working with us? Use the same box to sign in." />
+            <CodeLogin as="client" intent="interest" embedded heading="Order a review video"
+              sub="Enter your work email to see pricing and book your video. Pay online or request an invoice. Already working with us? Use the same box to sign in." />
           </div>
         </aside>
       </section>

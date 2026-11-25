@@ -36,6 +36,7 @@ export default function Dashboard() {
       <header className="top">
         <Brand />
         <div className="row">
+          <a className="linkbtn" href="/admin/orders">Orders &amp; discount codes</a>
           <a className="linkbtn" href="/editor">Editor view</a>
           <button className="linkbtn" onClick={async () => { await api('/api/logout', { method: 'POST' }); location.href = '/admin/login'; }}>Sign out</button>
         </div>

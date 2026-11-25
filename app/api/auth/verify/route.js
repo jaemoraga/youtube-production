@@ -3,7 +3,7 @@ import { after } from 'next/server';
 import { adminAlert, siteUrl } from '@/lib/alerts.js';
 import { getCompanies } from '@/lib/store.js';
 import { checkCode, normEmail } from '@/lib/codes.js';
-import { createProject, listProjects } from '@/lib/projects.js';
+import { listProjects } from '@/lib/projects.js';
 import { startSession } from '@/lib/session.js';
 import { recordVisit } from '@/lib/notifications.js';
 import { getMember, registerUser, touchLogin } from '@/lib/users.js';
@@ -25,11 +25,8 @@ export async function POST(request) {
   const isNew = !user && !!meta?.register;
   if (isNew) user = await registerUser({ email, ...meta.register });
   if (!user) return Response.json({ error: 'Account not found. Start again.' }, { status: 400 });
-  // Sign-ups from the public home page are leads: no project until HTR sells and creates one.
-  const lead = meta?.intent === 'interest';
-  if (!lead && !(await listProjects({ company: user.company })).length) {
-    await createProject(user.company, null, { role: 'client', email, name: `${user.first} ${user.last}`.trim() });
-  }
+  // Signing in never creates a project. A project opens when an order is paid (lib/orders.js) or HTR
+  // creates one in the admin. Someone with no project lands on the order page.
   await touchLogin(user);
   const projects = await listProjects({ company: user.company });
   const [project] = projects;
@@ -38,8 +35,8 @@ export async function POST(request) {
     const company = (await getCompanies()).find((c) => c.slug === user.company)?.name || user.company;
     const name = `${user.first} ${user.last}`.trim();
     const where = project ? `${siteUrl()}/admin/projects/${project.id}` : `${siteUrl()}/admin`;
-    await adminAlert(isNew && lead && !project
-      ? { subject: `New YouTube video lead: ${name} at ${company}`, text: `${name} (${email}) at ${company} entered their email on the YouTube Content Studio home page.\n\nThey have an account but no project. Create one from the admin when they buy.\n\n${where}` }
+    await adminAlert(isNew && !project
+      ? { subject: `New YouTube video lead: ${name} at ${company}`, text: `${name} (${email}) at ${company} just created an account in the YouTube Content Studio.\n\nThey have no project, so they were sent to the order page to pay or request an invoice. You'll get another email if they order.\n\n${siteUrl()}/admin/orders` }
       : isNew
       ? { subject: `New client account: ${name} at ${company}`, text: `${name} (${email}) just created an account for ${company}.${meta?.register?.companyName && meta.register.companyName !== company ? `\nThey typed "${meta.register.companyName}" and were added to the existing ${company} company by email domain.` : ''}\n\n${where}` }
       : { subject: `Client signed in: ${name} (${company})`, text: `${name} (${email}) from ${company} signed in to the sponsor portal.\n\n${where}` });
